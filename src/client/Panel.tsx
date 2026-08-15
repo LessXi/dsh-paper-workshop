@@ -1,5 +1,6 @@
 /**
- * 论文研读工坊面板：Settings → Plugins →「插件配置」tab 下的卡片。
+ * 论文研读工坊面板：设置面板左侧独立导航页「论文工坊」（v0.3.0 起与
+ * 「Agent 预设」平级，不再塞在「插件配置」页的卡片里）。
  * 论文队列/论文详情/周报/术语表 4 视图只读 + 设置视图（配置读写）。只读数据经注入的 `call`
  * 桥（host `/workshop` RPC 通道）读取，配置读写走 config/get · config/set，改动即时生效。
  * @module dsh-paper-workshop/client/Panel
@@ -10,6 +11,11 @@ import { useEffect, useState, type CSSProperties } from 'react'
 /** Props 注入给面板：指向 `/workshop` 通道的只读调用桥（已解包 RpcResult 信封）。 */
 export interface WorkshopPanelInjected {
   call: (endpoint: string, payload?: unknown) => Promise<unknown>
+}
+
+/** settings.section 壳层注入的 owner props（关闭设置面板；面板暂不使用）。 */
+export interface WorkshopPanelOwnerProps {
+  close: () => void
 }
 
 interface CardRow { arxiv: string; title: string; status: string; score: number; stage: number }
@@ -39,7 +45,7 @@ const STATUS_ZH: Record<string, string> = { later: '待读', reading: '在读', 
 /** 阶段号 → 中文名（0-6）。 */
 const STAGE_ZH = ['筛选', '鸟瞰', '精读', '深挖', '溯源', '复现', '内化']
 
-export function WorkshopPanel({ call }: WorkshopPanelInjected) {
+export function WorkshopPanel({ call }: WorkshopPanelInjected & Partial<WorkshopPanelOwnerProps>) {
   const [tab, setTab] = useState<(typeof TABS)[number]>('论文队列')
   const [ov, setOv] = useState<Overview | null>(null)
   const [terms, setTerms] = useState<TermRow[]>([])
@@ -100,10 +106,19 @@ export function WorkshopPanel({ call }: WorkshopPanelInjected) {
   }
 
   return (
-    <div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+    <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+      <div style={{ display: 'flex', gap: 18, marginBottom: 14, borderBottom: '1px solid var(--border, #444)' }}>
         {TABS.map(t => (
-          <button key={t} onClick={() => { setTab(t); setDetail(null) }} style={{ padding: '4px 12px', cursor: 'pointer', opacity: tab === t ? 1 : 0.55 }}>{t}</button>
+          <button
+            key={t}
+            onClick={() => { setTab(t); setDetail(null) }}
+            style={{
+              padding: '6px 2px', cursor: 'pointer', background: 'none', border: 'none',
+              borderBottom: `2px solid ${tab === t ? 'var(--accent, #4a9eff)' : 'transparent'}`,
+              color: tab === t ? 'inherit' : 'var(--text-secondary, #999)',
+              fontWeight: tab === t ? 600 : 400, marginBottom: -1,
+            }}
+          >{t}</button>
         ))}
       </div>
       {tab === '论文队列' && (
