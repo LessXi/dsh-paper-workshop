@@ -38,6 +38,25 @@ test('writeCheckpoint 覆盖旧断点小节', async () => {
   assert.ok(!card.body.includes('站点2·注意力'))
 })
 
+test('repro 复现清单：对象入档 → frontmatter 往返 → 逐项更新', async () => {
+  await upsertCard(root, {
+    arxiv: '2608.00002', title: '复现实验', status: 'reading', stage: 5,
+    repro: { env: true, code: false, results: false, note: '依赖装好了，官方 demo 还没跑' },
+  })
+  const c1 = await getCard(root, '2608.00002')!
+  assert.deepEqual(c1.repro, { env: true, code: false, results: false, note: '依赖装好了，官方 demo 还没跑' })
+  // 用户口头「代码跑通了」→ 只更新一项，其余保留
+  await upsertCard(root, { arxiv: '2608.00002', repro: { env: true, code: true, results: false, note: 'demo 跑通；指标差 12%' } })
+  const c2 = await getCard(root, '2608.00002')!
+  assert.equal(c2.repro.code, true)
+  assert.equal(c2.repro.results, false)
+  assert.ok(c2.repro.note.includes('12%'))
+  // 未写 repro 的老档案默认全 false、不炸
+  await upsertCard(root, { arxiv: '2608.00003', title: '无复现' })
+  const c3 = await getCard(root, '2608.00003')!
+  assert.deepEqual(c3.repro, { env: false, code: false, results: false, note: '' })
+})
+
 test('glossary upsert/list', async () => {
   await upsertGlossary(root, { slug: 'attention', zh: '注意力机制', en: 'attention', plain: '决定看哪儿的一种加权', first_seen: '2608.00001', related: [] })
   const terms = await listGlossary(root)

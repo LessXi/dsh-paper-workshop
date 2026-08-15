@@ -93,7 +93,7 @@ export function registerDataTools(ctx: Context, deps: DataToolDeps): () => void 
     parameters: {
       action: { type: 'string', required: true, description: 'get | upsert | list | checkpoint' },
       arxiv: { type: 'string', description: 'arXiv 编号（get/checkpoint 必填）' },
-      card: { type: 'object', additionalProperties: true, description: 'upsert 时的档案字段（arxiv 必填；可含 status/score/stage/one_line/source_week/questions 等）' },
+      card: { type: 'object', additionalProperties: true, description: 'upsert 时的档案字段（arxiv 必填；可含 status/score/stage/one_line/source_week/questions/repro 等；repro={env,code,results,note} 是复现清单，对话里用户说「环境好了/代码跑通了/结果对上了」就逐项置 true）' },
       at: { type: 'string', description: 'checkpoint：讲到哪个站点哪个概念' },
       pending: { type: 'string', description: 'checkpoint：待回收的检查问题' },
       review: { type: 'string', description: 'checkpoint：回炉点记录' },

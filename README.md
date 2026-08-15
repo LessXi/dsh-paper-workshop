@@ -20,9 +20,9 @@
 │     ~/.dsh/paper-workshop/{cards,notes,       │  可一键切 Obsidian vault（storage.mode）
 │       reports,glossary,pdfs}                  │
 ├─────────────────────────────────────────────┤
-│  ④ UI layer · 网页面板（4 视图只读 + 设置）   │  设置左侧独立导航页「论文工坊」（与
-│     论文队列 / 论文详情 / 周报 / 术语表         │  「Agent 预设」平级）：数据经
-│                                               │  /workshop RPC 通道读取，设置页交互式改配置
+│  ④ UI layer · 主界面视图 + 设置卡片          │  会话顶部视图栏「论文工坊」整页
+│     论文库(队列+详情) / 周报 / 术语表 / 复现清单 │  （与对话/轨迹/瀑布流并列）；设置→
+│                                               │  插件→插件配置 里一张折叠卡片
 └─────────────────────────────────────────────┘
 ```
 
@@ -33,7 +33,7 @@
 ### 方式一：GitHub Release 包（推荐给最终用户，预构建零依赖）
 
 ```powershell
-dsh plugin --profile web add https://github.com/LessXi/dsh-paper-workshop/releases/download/v0.3.0/dsh-paper-workshop-0.3.0.tgz
+dsh plugin --profile web add https://github.com/LessXi/dsh-paper-workshop/releases/download/v0.4.0/dsh-paper-workshop-0.4.0.tgz
 ```
 
 ### 方式二：源码 tar.gz（追最新 main，安装时自动构建）

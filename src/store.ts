@@ -14,17 +14,20 @@ function assertArxivId(arxiv: string): void {
 }
 
 export interface ReviewItem { concept: string; added: string; source: string }
+/** 复现清单进度（进入复现阶段后逐项打勾，对话里口头更新）。 */
+export interface ReproState { env: boolean; code: boolean; results: boolean; note: string }
 export interface PaperCard {
   arxiv: string; title: string; authors: string; year: string; venue: string
   status: 'skipped' | 'later' | 'reading' | 'done'
   score: number; one_line: string; stage: number; source_week: string
   review: ReviewItem[]; questions: string[]; tags: string[]
+  repro: ReproState
   body: string // 正文（含 ## 断点 小节）
 }
 export interface GlossaryTerm { slug: string; zh: string; en: string; plain: string; first_seen: string; related: string[] }
 export interface ReportMeta { week: string; path: string; mtimeMs: number }
 
-const CARD_FIELDS = ['arxiv', 'title', 'authors', 'year', 'venue', 'status', 'score', 'one_line', 'stage', 'source_week', 'review', 'questions', 'tags'] as const
+const CARD_FIELDS = ['arxiv', 'title', 'authors', 'year', 'venue', 'status', 'score', 'one_line', 'stage', 'source_week', 'review', 'questions', 'tags', 'repro'] as const
 
 // ---------- 极简 frontmatter（仅支持本插件 schema 所需子集） ----------
 
@@ -130,6 +133,8 @@ function cardPath(root: string, arxiv: string): string { return join(root, 'card
 
 function toCard(data: Record<string, unknown>, body: string): PaperCard {
   const str = (k: string, d = '') => (typeof data[k] === 'string' ? data[k] as string : d)
+  // repro 存为单元素对象列表（frontmatter 解析器支持对象列表、不支持单值对象）
+  const reproRaw = Array.isArray(data.repro) && data.repro[0] !== null && typeof data.repro[0] === 'object' ? data.repro[0] as Record<string, unknown> : {}
   return {
     arxiv: str('arxiv'), title: str('title'), authors: str('authors'), year: str('year'), venue: str('venue'),
     status: (str('status', 'later') as PaperCard['status']),
@@ -138,6 +143,12 @@ function toCard(data: Record<string, unknown>, body: string): PaperCard {
     review: Array.isArray(data.review) ? data.review as ReviewItem[] : [],
     questions: Array.isArray(data.questions) ? data.questions as string[] : [],
     tags: Array.isArray(data.tags) ? data.tags as string[] : ['paper'],
+    repro: {
+      env: reproRaw.env === true,
+      code: reproRaw.code === true,
+      results: reproRaw.results === true,
+      note: typeof reproRaw.note === 'string' ? reproRaw.note : '',
+    },
     body,
   }
 }
@@ -155,7 +166,10 @@ export async function upsertCard(root: string, patch: Partial<PaperCard> & { arx
   } catch { /* 新建 */ }
   for (const field of CARD_FIELDS) {
     const v = (patch as Record<string, unknown>)[field]
-    if (v !== undefined && field !== 'arxiv') data[field] = v
+    if (v !== undefined && field !== 'arxiv') {
+      // repro 在 frontmatter 里存为单元素对象列表；patch 允许直接传对象
+      data[field] = field === 'repro' && !Array.isArray(v) ? [v] : v
+    }
   }
   if (data.arxiv === undefined || data.arxiv === '') data.arxiv = patch.arxiv
   if (!Array.isArray(data.tags) || (data.tags as string[]).length === 0) data.tags = ['paper']
