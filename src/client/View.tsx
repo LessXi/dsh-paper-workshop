@@ -1,7 +1,8 @@
 /**
  * 论文工坊主视图（conversation.view 视图环成员，与「对话/轨迹/瀑布流」并列）。
- * 三个二级页签：论文库（左队列右详情 master-detail）/ 周报 / 术语表。
- * 视觉全部走 --dsw-* 设计令牌 + 官方原语（Button/Input），自动跟随明暗主题。
+ * 单页布局（v0.4.1 起不再分二级标签）：论文库（左队列右详情）/ 周报 / 术语表
+ * 三个区块纵向排布，同一容器同一宽度，一滚到底。
+ * 视觉全部走 --dsw-* 设计令牌，自动跟随明暗主题。
  * @module dsh-paper-workshop/client/View
  */
 
@@ -37,9 +38,6 @@ interface CardDetail {
   checkpoint?: { at?: string; pending?: string; review?: string }
 }
 
-const SECTIONS = ['论文库', '周报', '术语表'] as const
-type Section = (typeof SECTIONS)[number]
-
 const STATUS_ZH: Record<string, string> = { later: '待读', reading: '在读', done: '已读', skipped: '跳过' }
 const STAGE_ZH = ['筛选', '鸟瞰', '精读', '深挖', '溯源', '复现', '内化']
 
@@ -52,10 +50,10 @@ const T = {
   border2: 'var(--dsw-alias-border-l2)',
   bg: 'var(--dsw-alias-bg-base)',
   layer: 'var(--dsw-alias-bg-layer-1, var(--dsw-alias-bg-base))',
-  hover: 'var(--dsw-alias-interactive-bg-hover)',
   brand: 'var(--dsw-alias-brand-primary)',
   ok: 'var(--dsw-alias-state-success-primary)',
   warn: 'var(--dsw-alias-state-warn-primary)',
+  err: 'var(--dsw-alias-label-error, var(--dsw-alias-state-error-primary))',
 }
 
 const chip = (color: string): CSSProperties => ({
@@ -63,6 +61,16 @@ const chip = (color: string): CSSProperties => ({
   fontSize: 12, lineHeight: '18px', whiteSpace: 'nowrap',
   color, background: `color-mix(in srgb, ${color} 12%, transparent)`,
 })
+
+/** 区块标题：论文库 / 周报 / 术语表。 */
+function SectionTitle({ title, extra }: { title: string; extra?: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, margin: '26px 0 10px' }}>
+      <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{title}</span>
+      {extra !== undefined && <span style={{ fontSize: 12, color: T.faint }}>{extra}</span>}
+    </div>
+  )
+}
 
 /** 阶段 7 格进度条 + 文字标注。 */
 function StageBar({ stage, status }: { stage: number; status: string }) {
@@ -85,13 +93,13 @@ function StageBar({ stage, status }: { stage: number; status: string }) {
   )
 }
 
-/** 复现清单（进入复现阶段或有进度时显示）。 */
+/** 复现清单（有进度或有备注时显示）。 */
 function ReproList({ repro }: { repro: ReproState }) {
   const anyProgress = repro.env || repro.code || repro.results
   if (!anyProgress && repro.note === '') return null
   const items: Array<[boolean, string]> = [[repro.env, '环境搭好'], [repro.code, '代码跑通'], [repro.results, '结果对齐']]
   return (
-    <div style={{ margin: '14px 0', padding: '12px 14px', border: `1px solid ${T.border}`, borderRadius: 10, background: T.layer }}>
+    <div style={{ margin: '12px 0', padding: '10px 12px', border: `1px solid ${T.border}`, borderRadius: 10 }}>
       <div style={{ fontSize: 12, color: T.sub, marginBottom: 8, fontWeight: 500 }}>复现清单</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         {items.map(([ok, label]) => (
@@ -107,7 +115,7 @@ function ReproList({ repro }: { repro: ReproState }) {
 /** 论文详情右栏。 */
 function DetailPane({ detail }: { detail: CardDetail | null }) {
   if (detail === null) {
-    return <div style={{ color: T.faint, fontSize: 13, padding: '18px 4px' }}>左侧点选一篇论文，这里显示研读进度与断点。</div>
+    return <div style={{ color: T.faint, fontSize: 12.5, padding: '6px 2px' }}>左侧点选一篇论文，这里显示研读进度与断点。</div>
   }
   const c = detail.card
   const stage = Number(c.stage ?? 0)
@@ -115,10 +123,10 @@ function DetailPane({ detail }: { detail: CardDetail | null }) {
   const tone = c.status === 'reading' ? T.brand : c.status === 'done' ? T.ok : T.sub
   return (
     <div style={{ fontSize: 13, lineHeight: 1.65 }}>
-      <div style={{ fontSize: 15, fontWeight: 600, color: T.text, marginBottom: 6, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 14.5, fontWeight: 600, color: T.text, marginBottom: 6, lineHeight: 1.5 }}>
         {String(c.title || c.arxiv)}
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 12 }}>
         <span style={chip(tone)}>{statusZh}</span>
         <span style={chip(Number(c.score) >= 7 ? T.brand : T.sub)}>{String(c.score)} 分</span>
         <a href={`https://arxiv.org/abs/${String(c.arxiv)}`} target="_blank" rel="noreferrer"
@@ -129,7 +137,7 @@ function DetailPane({ detail }: { detail: CardDetail | null }) {
       <StageBar stage={stage} status={String(c.status)} />
       {c.repro !== undefined && <ReproList repro={c.repro} />}
       {detail.checkpoint !== undefined && (
-        <div style={{ margin: '14px 0', padding: '12px 14px', border: `1px solid ${T.border}`, borderRadius: 10, background: T.layer }}>
+        <div style={{ margin: '12px 0', padding: '10px 12px', border: `1px solid ${T.border}`, borderRadius: 10 }}>
           <div style={{ fontSize: 12, color: T.sub, marginBottom: 8, fontWeight: 500 }}>断点（下次从这接着讲）</div>
           <div style={{ color: T.text }}>讲到：{detail.checkpoint.at ?? '—'}</div>
           {detail.checkpoint.pending !== undefined && detail.checkpoint.pending !== '' && (
@@ -141,7 +149,7 @@ function DetailPane({ detail }: { detail: CardDetail | null }) {
         </div>
       )}
       <div style={{
-        marginTop: 14, padding: '10px 14px', borderRadius: 10,
+        marginTop: 12, padding: '9px 12px', borderRadius: 10,
         background: `color-mix(in srgb, ${T.brand} 8%, transparent)`,
         border: `1px solid color-mix(in srgb, ${T.brand} 25%, transparent)`,
         color: T.text, fontSize: 12.5,
@@ -154,7 +162,6 @@ function DetailPane({ detail }: { detail: CardDetail | null }) {
 
 /** 主视图组件。 */
 export function WorkshopView({ call }: WorkshopViewInjected & Partial<WorkshopViewOwnerProps>) {
-  const [section, setSection] = useState<Section>('论文库')
   const [ov, setOv] = useState<Overview | null>(null)
   const [error, setError] = useState('')
   const [selected, setSelected] = useState<string | null>(null)
@@ -183,134 +190,120 @@ export function WorkshopView({ call }: WorkshopViewInjected & Partial<WorkshopVi
       || t.plain.toLowerCase().includes(q) || t.first_seen.toLowerCase().includes(q))
   }, [terms, termQuery])
 
-  if (error !== '') return <div style={{ padding: 24, color: 'var(--dsw-alias-state-error-primary)', fontSize: 13 }}>加载失败：{error}</div>
+  if (error !== '') return <div style={{ padding: 24, color: T.err, fontSize: 13 }}>加载失败：{error}</div>
   if (ov === null) return <div style={{ padding: 24, color: T.sub, fontSize: 13 }}>加载中…</div>
 
   return (
-    <div style={{ padding: '20px 26px 32px', maxWidth: 1080, margin: '0 auto', fontSize: 13, lineHeight: 1.6, color: T.text }}>
-      {/* 二级页签 + 刷新 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 18, borderBottom: `1px solid ${T.border2}`, marginBottom: 16 }}>
-        {SECTIONS.map(s => (
-          <button key={s} onClick={() => setSection(s)} style={{
-            padding: '7px 2px 9px', background: 'none', border: 'none', cursor: 'pointer',
-            fontSize: 13.5, color: section === s ? T.text : T.sub,
-            fontWeight: section === s ? 600 : 400,
-            borderBottom: `2px solid ${section === s ? T.brand : 'transparent'}`, marginBottom: -1,
-          }}>{s}</button>
-        ))}
+    <div style={{ padding: '18px 26px 40px', maxWidth: 1080, margin: '0 auto', fontSize: 13, lineHeight: 1.6, color: T.text }}>
+      {/* 头部：研读库 + 统计 + 刷新 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 12.5, color: T.sub }}>
+          研读库 <span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: 12 }}>{ov.dataRoot}</span>
+          <span style={{ margin: '0 8px', color: T.border }}>·</span>
+          共 <b>{ov.counts.total}</b> 篇
+          <span style={{ margin: '0 8px', color: T.border }}>·</span>在读 <b>{ov.counts.reading}</b>
+          <span style={{ margin: '0 8px', color: T.border }}>·</span>待读 <b>{ov.counts.later}</b>
+          <span style={{ margin: '0 8px', color: T.border }}>·</span>已读 <b>{ov.counts.done}</b>
+        </span>
         <span style={{ flex: 1 }} />
         <Button variant="ghost" size="sm" icon={<IconRefreshOutline14 />} onClick={load}>刷新</Button>
       </div>
 
-      {section === '论文库' && (
-        <>
-          <div style={{ fontSize: 12.5, color: T.sub, marginBottom: 12 }}>
-            研读库 <span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: 12 }}>{ov.dataRoot}</span>
-            <span style={{ margin: '0 8px', color: T.border }}>·</span>
-            共 <b>{ov.counts.total}</b> 篇
-            <span style={{ margin: '0 8px', color: T.border }}>·</span>在读 <b>{ov.counts.reading}</b>
-            <span style={{ margin: '0 8px', color: T.border }}>·</span>待读 <b>{ov.counts.later}</b>
-            <span style={{ margin: '0 8px', color: T.border }}>·</span>已读 <b>{ov.counts.done}</b>
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' }}>
-            {/* 左：论文队列 */}
-            <div style={{ flex: '5 1 320px', minWidth: 280 }}>
-              {ov.cards.length === 0
-                ? <div style={{ padding: '22px 4px', color: T.faint, fontSize: 13 }}>
-                  还没有论文。在对话里说「研读这篇 &lt;arXiv 编号或链接&gt;」，或等每周一自动周报推荐。
-                </div>
-                : (
-                  <div style={{ border: `1px solid ${T.border}`, borderRadius: 10, background: T.layer, overflow: 'hidden' }}>
-                    {ov.cards.map((c, i) => {
-                      const active = c.arxiv === selected
-                      return (
-                        <div key={c.arxiv} onClick={() => setSelected(c.arxiv)} style={{
-                          padding: '10px 14px', cursor: 'pointer',
-                          borderTop: i === 0 ? 'none' : `1px solid ${T.border}`,
-                          background: active ? `color-mix(in srgb, ${T.brand} 8%, transparent)` : undefined,
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{
-                              flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                              fontWeight: active ? 600 : 400, color: T.text,
-                            }}>{c.title || c.arxiv}</span>
-                            <span style={chip(c.status === 'reading' ? T.brand : c.status === 'done' ? T.ok : T.sub)}>
-                              {STATUS_ZH[c.status] ?? c.status}
-                            </span>
-                            <span style={{ fontSize: 12.5, fontWeight: 600, color: Number(c.score) >= 7 ? T.brand : T.sub, fontVariantNumeric: 'tabular-nums' }}>{c.score}</span>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 5 }}>
-                            <span style={{ fontSize: 11.5, color: T.faint, fontFamily: 'ui-monospace, Consolas, monospace' }}>{c.arxiv}</span>
-                            <StageBar stage={c.stage} status={c.status} />
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-            </div>
-            {/* 右：详情 */}
-            <div style={{ flex: '4 1 280px', minWidth: 260, border: `1px solid ${T.border}`, borderRadius: 10, background: T.layer, padding: '14px 16px' }}>
-              <DetailPane detail={detail} />
-            </div>
-          </div>
-        </>
-      )}
-
-      {section === '周报' && (
-        ov.reports.length === 0
-          ? <div style={{ padding: '22px 4px', color: T.faint, fontSize: 13 }}>
-            还没有周报。每周一自动生成，或在对话里说「跑一下周报」。
-          </div>
-          : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {ov.reports.map(r => (
-                <div key={r.week} style={{
-                  display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px',
-                  border: `1px solid ${T.border}`, borderRadius: 10, background: T.layer,
-                }}>
-                  <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{r.week}</span>
-                  <span style={{ flex: 1, color: T.sub, fontSize: 12.5 }}>{new Date(r.mtimeMs).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric', weekday: 'short' })} 生成</span>
-                  <span style={{ fontSize: 12, color: T.faint }}>对话里说「看 {r.week} 周报」我来解读</span>
-                </div>
-              ))}
-            </div>
-          )
-      )}
-
-      {section === '术语表' && (
-        <>
-          <div style={{ marginBottom: 12, maxWidth: 320 }}>
-            <Input icon={<IconSearchOutline16 />} placeholder="搜索中文 / 英文 / 解释" value={termQuery} onChange={(e: ChangeEvent<HTMLInputElement>) => setTermQuery(e.target.value)} />
-          </div>
-          {filteredTerms.length === 0
-            ? <div style={{ padding: '22px 4px', color: T.faint, fontSize: 13 }}>
-              {terms.length === 0 ? '还没有术语。精读时攒下的新词会自动进来。' : '没有匹配的术语。'}
+      {/* 区块一：论文库 */}
+      <SectionTitle title="论文库" extra={ov.cards.length > 0 ? `${ov.cards.length} 篇` : undefined} />
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'flex-start' }}>
+        <div style={{ flex: '5 1 320px', minWidth: 280 }}>
+          {ov.cards.length === 0
+            ? <div style={{ padding: '16px 4px', color: T.faint, fontSize: 12.5 }}>
+              还没有论文。在对话里说「研读这篇 &lt;arXiv 编号或链接&gt;」，或等每周一自动周报推荐。
             </div>
             : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr>{['中文', '英文', '人话解释', '首见'].map(h => (
-                    <th key={h} style={{
-                      textAlign: 'left', padding: '8px 12px', fontSize: 12, fontWeight: 500,
-                      color: T.sub, borderBottom: `1px solid ${T.border2}`,
-                    }}>{h}</th>
-                  ))}</tr>
-                </thead>
-                <tbody>
-                  {filteredTerms.map(t => (
-                    <tr key={t.slug}>
-                      <td style={{ padding: '9px 12px', borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>{t.zh}</td>
-                      <td style={{ padding: '9px 12px', borderBottom: `1px solid ${T.border}`, color: T.sub, whiteSpace: 'nowrap' }}>{t.en}</td>
-                      <td style={{ padding: '9px 12px', borderBottom: `1px solid ${T.border}` }}>{t.plain}</td>
-                      <td style={{ padding: '9px 12px', borderBottom: `1px solid ${T.border}`, color: T.faint, fontFamily: 'ui-monospace, Consolas, monospace', fontSize: 12 }}>{t.first_seen}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div style={{ border: `1px solid ${T.border}`, borderRadius: 10, overflow: 'hidden' }}>
+                {ov.cards.map((c, i) => {
+                  const active = c.arxiv === selected
+                  return (
+                    <div key={c.arxiv} onClick={() => setSelected(c.arxiv)} style={{
+                      padding: '9px 13px', cursor: 'pointer',
+                      borderTop: i === 0 ? 'none' : `1px solid ${T.border}`,
+                      background: active ? `color-mix(in srgb, ${T.brand} 8%, transparent)` : undefined,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{
+                          flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          fontWeight: active ? 600 : 400, color: T.text,
+                        }}>{c.title || c.arxiv}</span>
+                        <span style={chip(c.status === 'reading' ? T.brand : c.status === 'done' ? T.ok : T.sub)}>
+                          {STATUS_ZH[c.status] ?? c.status}
+                        </span>
+                        <span style={{ fontSize: 12.5, fontWeight: 600, color: Number(c.score) >= 7 ? T.brand : T.sub, fontVariantNumeric: 'tabular-nums' }}>{c.score}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+                        <span style={{ fontSize: 11.5, color: T.faint, fontFamily: 'ui-monospace, Consolas, monospace' }}>{c.arxiv}</span>
+                        <StageBar stage={c.stage} status={c.status} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             )}
-        </>
-      )}
+        </div>
+        <div style={{ flex: '4 1 280px', minWidth: 260, border: `1px solid ${T.border}`, borderRadius: 10, padding: '12px 14px' }}>
+          <DetailPane detail={detail} />
+        </div>
+      </div>
+
+      {/* 区块二：周报 */}
+      <SectionTitle title="周报" extra={ov.reports.length > 0 ? `${ov.reports.length} 期` : undefined} />
+      {ov.reports.length === 0
+        ? <div style={{ padding: '10px 4px', color: T.faint, fontSize: 12.5 }}>
+          还没有周报。每周一自动生成，或在对话里说「跑一下周报」。
+        </div>
+        : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {ov.reports.map(r => (
+              <div key={r.week} style={{
+                display: 'flex', alignItems: 'center', gap: 12, padding: '9px 13px',
+                border: `1px solid ${T.border}`, borderRadius: 10,
+              }}>
+                <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{r.week}</span>
+                <span style={{ flex: 1, color: T.sub, fontSize: 12.5 }}>{new Date(r.mtimeMs).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric', weekday: 'short' })} 生成</span>
+                <span style={{ fontSize: 12, color: T.faint }}>对话里说「看 {r.week} 周报」我来解读</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+      {/* 区块三：术语表 */}
+      <SectionTitle title="术语表" extra={terms.length > 0 ? `${terms.length} 条` : undefined} />
+      <div style={{ marginBottom: 10, maxWidth: 320 }}>
+        <Input icon={<IconSearchOutline16 />} placeholder="搜索中文 / 英文 / 解释" value={termQuery} onChange={(e: ChangeEvent<HTMLInputElement>) => setTermQuery(e.target.value)} />
+      </div>
+      {filteredTerms.length === 0
+        ? <div style={{ padding: '10px 4px', color: T.faint, fontSize: 12.5 }}>
+          {terms.length === 0 ? '还没有术语。精读时攒下的新词会自动进来。' : '没有匹配的术语。'}
+        </div>
+        : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr>{['中文', '英文', '人话解释', '首见'].map(h => (
+                <th key={h} style={{
+                  textAlign: 'left', padding: '7px 10px', fontSize: 12, fontWeight: 500,
+                  color: T.sub, borderBottom: `1px solid ${T.border2}`,
+                }}>{h}</th>
+              ))}</tr>
+            </thead>
+            <tbody>
+              {filteredTerms.map(t => (
+                <tr key={t.slug}>
+                  <td style={{ padding: '8px 10px', borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>{t.zh}</td>
+                  <td style={{ padding: '8px 10px', borderBottom: `1px solid ${T.border}`, color: T.sub, whiteSpace: 'nowrap' }}>{t.en}</td>
+                  <td style={{ padding: '8px 10px', borderBottom: `1px solid ${T.border}` }}>{t.plain}</td>
+                  <td style={{ padding: '8px 10px', borderBottom: `1px solid ${T.border}`, color: T.faint, fontFamily: 'ui-monospace, Consolas, monospace', fontSize: 12 }}>{t.first_seen}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
     </div>
   )
 }

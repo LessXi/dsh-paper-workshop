@@ -1,12 +1,12 @@
 /**
  * 论文研读工坊设置卡片（设置 → 插件 → 插件配置，与终端/视觉路由等并列）。
- * 折叠时一行：图标 + 标题 + 说明；展开后是三组配置（存储位置 / 每周自动周报 / 复现环境）
- * + 保存按钮。全部走官方原语与 --dsw-* 令牌。
+ * 外观 1:1 复刻内置 PluginCard（圆角边框卡片 + 标题/描述两行 + chevron 旋转 +
+ * 展开体 + 右下角保存），样式走 --dsw-* 令牌，明暗主题自适应。
  * @module dsh-paper-workshop/client/SettingsCard
  */
 
-import { useEffect, useState, type ChangeEvent, type CSSProperties } from 'react'
-import { Button, DisclosureRow, Input, IconDataOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { useEffect, useState, type ChangeEvent } from 'react'
+import { IconChevronDownOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
 
 /** Props 注入给卡片：指向 `/workshop` 通道的调用桥（已解包 RpcResult 信封）。 */
 export interface WorkshopSettingsInjected {
@@ -23,22 +23,45 @@ interface ConfigState {
   pythonCmd: string
 }
 
-const T = {
-  text: 'var(--dsw-alias-label-primary)',
-  sub: 'var(--dsw-alias-label-secondary)',
-  faint: 'var(--dsw-alias-label-tertiary, var(--dsw-alias-label-secondary))',
-  border: 'var(--dsw-alias-border-l1)',
-  brand: 'var(--dsw-alias-brand-primary)',
-  ok: 'var(--dsw-alias-state-success-primary)',
-  err: 'var(--dsw-alias-state-error-primary)',
+// 与内置 PluginCard.module.css 同款规则，加前缀隔离（只注入一次）
+const CSS = `
+.dpw-card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:12px;list-style:none;transition:border-color .16s,background .16s}
+.dpw-card:hover{border-color:var(--dsw-alias-label-dimmed)}
+.dpw-card[data-open]{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-label-dimmed)}
+.dpw-header{appearance:none;width:100%;font:inherit;color:inherit;text-align:left;cursor:pointer;background:0 0;border:0;border-radius:12px;align-items:center;gap:12px;padding:14px 16px;display:flex}
+.dpw-header:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}
+.dpw-headtext{flex-direction:column;flex:1;gap:4px;min-width:0;display:flex}
+.dpw-name{color:var(--dsw-alias-label-primary);font-size:15px;font-weight:600;line-height:1.4}
+.dpw-desc{color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:1.5}
+.dpw-chev{color:var(--dsw-alias-label-tertiary);flex:none;display:grid;place-items:center;transition:transform .16s}
+.dpw-chev[data-open]{transform:rotate(180deg)}
+.dpw-body{border-top:1px solid var(--dsw-alias-border-l2);margin:0 16px;padding-bottom:8px}
+.dpw-footer{border-top:1px solid var(--dsw-alias-border-l2);justify-content:flex-end;align-items:center;gap:8px;padding:12px 0 4px;display:flex}
+.dpw-msg{min-width:0;flex:1;margin:0;font-size:12px;line-height:1.5}
+.dpw-msg[data-ok]{color:var(--dsw-alias-state-success-primary)}
+.dpw-msg[data-err]{color:var(--dsw-alias-label-error,var(--dsw-alias-state-error-primary))}
+.dpw-save{appearance:none;font:inherit;cursor:pointer;border:1px solid #0000;border-radius:8px;padding:5px 14px;font-size:13px;line-height:1.5;background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3)}
+.dpw-save:disabled{cursor:default;opacity:.55}
+.dpw-field{width:100%;max-width:420px;box-sizing:border-box;padding:6px 10px;font:inherit;font-size:13px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);border:1px solid var(--dsw-alias-border-l2);border-radius:8px}
+.dpw-field:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-1px}
+.dpw-label{display:block;margin:12px 0 4px;font-size:12.5px;color:var(--dsw-alias-label-secondary)}
+.dpw-hint{font-size:12px;color:var(--dsw-alias-label-tertiary);margin-top:3px;line-height:1.6}
+.dpw-group{font-size:12px;font-weight:600;color:var(--dsw-alias-label-secondary);margin:16px 0 2px;letter-spacing:.3px}
+.dpw-check{display:flex;align-items:center;gap:6px;margin:12px 0 2px;cursor:pointer;font-size:12.5px;color:var(--dsw-alias-label-secondary)}
+`
+
+let cssInjected = false
+function injectCss(): void {
+  if (cssInjected || typeof document === 'undefined') return
+  const tag = document.createElement('style')
+  tag.dataset.pluginCss = 'dsh-paper-workshop/settings-card'
+  tag.textContent = CSS
+  document.head.appendChild(tag)
+  cssInjected = true
 }
 
-const label: CSSProperties = { display: 'block', margin: '10px 0 4px', fontSize: 12.5, color: T.sub }
-const field = { style: { width: '100%', maxWidth: 420, boxSizing: 'border-box' } }
-const hint: CSSProperties = { fontSize: 12, color: T.faint, marginTop: 3, lineHeight: 1.6 }
-const groupTitle: CSSProperties = { fontSize: 12, fontWeight: 600, color: T.sub, margin: '14px 0 2px', letterSpacing: 0.3 }
-
 export function WorkshopSettingsCard({ call }: WorkshopSettingsInjected) {
+  injectCss()
   const [open, setOpen] = useState(false)
   const [cfg, setCfg] = useState<ConfigState | null>(null)
   const [saving, setSaving] = useState(false)
@@ -77,7 +100,7 @@ export function WorkshopSettingsCard({ call }: WorkshopSettingsInjected) {
         },
       })
       setCfg((res as { config: ConfigState }).config)
-      setMsg({ ok: true, text: '✓ 已保存并即时生效' })
+      setMsg({ ok: true, text: '✓ 已保存并即时生效（周报调度已按新配置重排）' })
     } catch (e) {
       setMsg({ ok: false, text: String(e) })
     } finally {
@@ -85,80 +108,85 @@ export function WorkshopSettingsCard({ call }: WorkshopSettingsInjected) {
     }
   }
 
+  const field = { className: 'dpw-field' }
+
   return (
-    <DisclosureRow
-      icon={<IconDataOutline16 />}
-      title="论文研读工坊"
-      open={open}
-      expandable
-      onToggle={() => setOpen(o => !o)}
-      expandOnRowClick
-      collapsedContent="论文队列 / 周报 / 术语在主界面「论文工坊」视图；这里只改配置"
-    >
-      {cfg === null
-        ? <div style={{ fontSize: 12.5, color: T.faint, padding: '4px 0 12px' }}>{open ? '加载中…' : null}</div>
-        : (
-          <div style={{ fontSize: 12.5, lineHeight: 1.65, paddingBottom: 10 }}>
-            <div style={groupTitle}>存储位置</div>
-            <label style={label}>存储方式</label>
-            <select
-              value={cfg.storage.mode}
-              onChange={(e: ChangeEvent<HTMLSelectElement>) => setStorage({ mode: e.target.value as ConfigState['storage']['mode'] })}
-              style={{
-                width: '100%', maxWidth: 420, boxSizing: 'border-box', padding: '6px 8px', fontSize: 12.5,
-                background: 'var(--dsw-alias-bg-base)', color: T.text,
-                border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 8,
-              }}
-            >
-              <option value="self">内置位置（默认）</option>
-              <option value="obsidian">Obsidian vault</option>
-            </select>
-            {cfg.storage.mode === 'self'
-              ? (
-                <>
-                  <label style={label}>内置研读库位置</label>
-                  <Input {...field} value={cfg.storage.selfPath} onChange={(e: ChangeEvent<HTMLInputElement>) => setStorage({ selfPath: e.target.value })} />
-                </>
-              )
-              : (
-                <>
-                  <label style={label}>Obsidian vault 根目录</label>
-                  <Input {...field} value={cfg.storage.obsidianPath} onChange={(e: ChangeEvent<HTMLInputElement>) => setStorage({ obsidianPath: e.target.value })} placeholder="E:\论文研读库" />
-                  <div style={hint}>切换后，卡片 / 笔记 / 周报 / 术语全部写进你的 vault</div>
-                </>
-              )}
+    <li className="dpw-card" data-open={open || undefined}>
+      <button type="button" className="dpw-header" aria-expanded={open} onClick={() => setOpen(o => !o)}>
+        <span className="dpw-headtext">
+          <span className="dpw-name">论文研读工坊</span>
+          <span className="dpw-desc">论文队列 / 周报 / 术语在主界面「论文工坊」视图；这里只改配置</span>
+        </span>
+        <span className="dpw-chev" data-open={open || undefined}><IconChevronDownOutline14 /></span>
+      </button>
+      {open && (
+        <div className="dpw-body">
+          {cfg === null
+            ? <p style={{ margin: '12px 0 16px', fontSize: 12.5, color: 'var(--dsw-alias-label-tertiary)' }}>加载中…</p>
+            : (
+              <div style={{ fontSize: 12.5, lineHeight: 1.65 }}>
+                <div className="dpw-group">存储位置</div>
+                <label className="dpw-label">存储方式</label>
+                <select className="dpw-field" value={cfg.storage.mode}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => setStorage({ mode: e.target.value as ConfigState['storage']['mode'] })}>
+                  <option value="self">内置位置（默认）</option>
+                  <option value="obsidian">Obsidian vault</option>
+                </select>
+                {cfg.storage.mode === 'self'
+                  ? (
+                    <>
+                      <label className="dpw-label">内置研读库位置</label>
+                      <input className="dpw-field" value={cfg.storage.selfPath}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => setStorage({ selfPath: e.target.value })} />
+                    </>
+                  )
+                  : (
+                    <>
+                      <label className="dpw-label">Obsidian vault 根目录</label>
+                      <input className="dpw-field" value={cfg.storage.obsidianPath} placeholder="E:\论文研读库"
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => setStorage({ obsidianPath: e.target.value })} />
+                      <div className="dpw-hint">切换后，卡片 / 笔记 / 周报 / 术语全部写进你的 vault</div>
+                    </>
+                  )}
 
-            <div style={groupTitle}>每周自动周报</div>
-            <label style={{ ...label, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-              <input type="checkbox" checked={cfg.weekly.enabled} onChange={(e: ChangeEvent<HTMLInputElement>) => setWeekly({ enabled: e.target.checked })} />
-              每周自动生成
-            </label>
-            <label style={label}>触发时间 cron</label>
-            <Input {...field} value={cfg.weekly.cron} onChange={(e: ChangeEvent<HTMLInputElement>) => setWeekly({ cron: e.target.value })} />
-            <div style={hint}>5 段：分 时 日 月 周，默认 0 9 * * 1 = 每周一 9 点</div>
-            <label style={label}>时区</label>
-            <Input {...field} value={cfg.weekly.timeZone} onChange={(e: ChangeEvent<HTMLInputElement>) => setWeekly({ timeZone: e.target.value })} placeholder="Asia/Shanghai" />
-            <label style={label}>检索分类（逗号分隔）</label>
-            <Input {...field} value={cfg.weekly.categories.join(',')} onChange={(e: ChangeEvent<HTMLInputElement>) => setWeekly({ categories: e.target.value.split(/[,，]/).map((s: string) => s.trim()).filter(Boolean) })} placeholder="cs.LG,cs.CL,cs.CV" />
-            <label style={label}>每类扫描条数</label>
-            <Input {...field} inputMode="numeric" value={String(cfg.weekly.maxPerCategory)} onChange={(e: ChangeEvent<HTMLInputElement>) => setWeekly({ maxPerCategory: Number(e.target.value) })} />
-            <label style={label}>建档分数线（1–10）</label>
-            <Input {...field} inputMode="numeric" value={String(cfg.weekly.cardThreshold)} onChange={(e: ChangeEvent<HTMLInputElement>) => setWeekly({ cardThreshold: Number(e.target.value) })} />
+                <div className="dpw-group">每周自动周报</div>
+                <label className="dpw-check">
+                  <input type="checkbox" checked={cfg.weekly.enabled}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setWeekly({ enabled: e.target.checked })} />
+                  每周自动生成
+                </label>
+                <label className="dpw-label">触发时间 cron</label>
+                <input className="dpw-field" value={cfg.weekly.cron}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setWeekly({ cron: e.target.value })} />
+                <div className="dpw-hint">5 段：分 时 日 月 周，默认 0 9 * * 1 = 每周一 9 点</div>
+                <label className="dpw-label">时区</label>
+                <input className="dpw-field" value={cfg.weekly.timeZone} placeholder="Asia/Shanghai"
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setWeekly({ timeZone: e.target.value })} />
+                <label className="dpw-label">检索分类（逗号分隔）</label>
+                <input className="dpw-field" value={cfg.weekly.categories.join(',')} placeholder="cs.LG,cs.CL,cs.CV"
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setWeekly({ categories: e.target.value.split(/[,，]/).map((s: string) => s.trim()).filter(Boolean) })} />
+                <label className="dpw-label">每类扫描条数</label>
+                <input className="dpw-field" inputMode="numeric" value={String(cfg.weekly.maxPerCategory)}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setWeekly({ maxPerCategory: Number(e.target.value) })} />
+                <label className="dpw-label">建档分数线（1–10）</label>
+                <input className="dpw-field" inputMode="numeric" value={String(cfg.weekly.cardThreshold)}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setWeekly({ cardThreshold: Number(e.target.value) })} />
 
-            <div style={groupTitle}>复现环境</div>
-            <label style={label}>复现用 Python 命令</label>
-            <Input {...field} value={cfg.pythonCmd} onChange={(e: ChangeEvent<HTMLInputElement>) => set({ pythonCmd: e.target.value })} placeholder="py -3.13" />
+                <div className="dpw-group">复现环境</div>
+                <label className="dpw-label">复现用 Python 命令</label>
+                <input className="dpw-field" value={cfg.pythonCmd} placeholder="py -3.13"
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => set({ pythonCmd: e.target.value })} />
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
-              <Button variant="primary" size="sm" disabled={saving} onClick={() => { void save() }}>
-                {saving ? '保存中…' : '保存'}
-              </Button>
-              {msg !== null && (
-                <span style={{ fontSize: 12.5, color: msg.ok ? T.ok : T.err }}>{msg.text}</span>
-              )}
-            </div>
-          </div>
-        )}
-    </DisclosureRow>
+                <div className="dpw-footer">
+                  {msg !== null && <p className="dpw-msg" data-ok={msg.ok || undefined} data-err={!msg.ok || undefined}>{msg.text}</p>}
+                  <button type="button" className="dpw-save" disabled={saving} onClick={() => { void save() }}>
+                    {saving ? '保存中…' : '保存'}
+                  </button>
+                </div>
+              </div>
+            )}
+        </div>
+      )}
+    </li>
   )
 }
