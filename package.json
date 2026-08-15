@@ -29,7 +29,8 @@
     "build:types": "tsc -p tsconfig.json --emitDeclarationOnly --outDir lib/types",
     "watch": "tsdown --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --import tsx --test tests/*.spec.ts"
+    "test": "node --import tsx --test tests/*.spec.ts",
+    "prepare": "npm run build"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "*",

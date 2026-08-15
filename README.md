@@ -27,21 +27,23 @@
 
 ## 安装
 
-### 方式一：装的 tar.gz 包（推荐给最终用户）
+> 前置：DSH 已安装并能访问 `dsh` 命令。方式二还需要本机 Node ≥ 22.19 与 pnpm（安装时现场构建）。
 
-在 DSH 环境执行：
+### 方式一：GitHub Release 包（推荐给最终用户，预构建零依赖）
 
 ```powershell
-dsh plugin --profile web add <dsh-paper-workshop-0.1.0.tgz>
+dsh plugin --profile web add https://github.com/LessXi/dsh-paper-workshop/releases/download/v0.1.0/dsh-paper-workshop-0.1.0.tgz
 ```
 
-装完后无需重启即可在**设置 → 插件 → 插件配置**看到网页面板。插件 apply 时自动做三件事：
+### 方式二：源码 tar.gz（追最新 main，安装时自动构建）
 
-1. 初始化 `~/.dsh/paper-workshop/` 及其五子目录（cards / notes / reports / glossary / pdfs）；
-2. 把 skill 自安装到 `~/.dsh/skills/paper-workshop/SKILL.md`（升级覆盖写）；
-3. 按默认配置启动每周 arXiv 周报调度。
+```powershell
+dsh plugin --profile web add https://github.com/LessXi/dsh-paper-workshop/archive/refs/heads/main.tar.gz
+```
 
-### 方式二：本地开发装配（推荐给开发者）
+包内 `prepare` 脚本会在安装时执行 `npm run build` 现场产出 `lib/`。
+
+### 方式三：本地开发装配（推荐给开发者）
 
 在仓库根目录（含 `package.json` 与 `lib/`）用 DSH 的开发装配工具热加载：
 
@@ -50,6 +52,14 @@ dev_install_package  dir = <dsh-paper-workshop 项目根>
 ```
 
 装配后用 `dev_plugin_status` 核对 fiber 状态（`paper-workshop` 应处于运行态）。
+
+### 装完之后
+
+**方式一/二装完需重启 dsh web**（工具、技能、面板才对会话可见）；方式三热加载即时生效。插件 apply 时自动做三件事：
+
+1. 初始化 `~/.dsh/paper-workshop/` 及其五子目录（cards / notes / reports / glossary / pdfs）；
+2. 把 skill 自安装到 `~/.dsh/skills/paper-workshop/SKILL.md`（升级覆盖写）；
+3. 按默认配置启动每周 arXiv 周报调度。
 
 ## 验收自检清单
 
@@ -113,6 +123,13 @@ node scripts/smoke.mjs   # 构建产物 + ModuleLoader 装载契约冒烟，应�
 ```
 
 产物：`lib/index.js`（Node host 半面，ESM）+ `lib/client.js`（浏览器 client 半面，CJS factory @ `window.__ModuleLoader__.load`）+ `lib/types/`（类型声明）。
+
+> 注意：`tsconfig.json` 的 `paths` 指向本机 DSH 安装内的 `@deepseek-ai/*` 类型包（与 dsh-polling 同款机器级做法）。克隆本仓库后如 `pnpm typecheck` 报模块找不到，把 `paths` 里的绝对路径替换为你机器上的 DSH 安装路径即可（`pnpm build` 不受影响，tsdown 已外部化这些包）。
+
+## 已知限制（v0.1）
+
+- **旧式 arXiv 编号**（2007 年前的 `cs/0112017`、`math.GT/0309136` 等格式）暂不能建档/建术语——档案路径守卫只认 `YYMM.NNNNN[vN]` 现代格式，计划 v0.2 放宽。
+- Windows 下 `pnpm test` 依赖 node --test 的 glob 行为，个别 shell 可能需逐文件运行（`node --experimental-transform-types tests/<x>.spec.ts`）。
 
 ## License
 
