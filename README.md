@@ -79,11 +79,11 @@ node scripts/verify.mjs        # 仓库内；tgz 安装的用户：
 | # | 手动项 | 怎么验 |
 |---|---|---|
 | 1 | 研读流程 + 断点续讲 | 新会话说「研读这篇 <任一 arXiv 链接>」→ 应走筛选+鸟瞰并出验收卷子；中断后说「继续」应从断点续讲 |
-| 2 | 周报 + 面板 | 说「跑一下周报」→ 研读库 `reports/` 应落一份周报；网页 设置→插件→论文研读工坊 可见 4 视图 |
+| 2 | 周报 + 面板 | 说「跑一下周报」→ 研读库 `reports/` 应落一份周报；网页会话顶部视图栏「论文工坊」可见 论文库\|周报\|术语表 三列并排 |
 
 ## 配置说明
 
-配置文件位于 `~/.dsh/paper-workshop/config.json`（首次启动自动生成）。优先在 设置→插件→论文研读工坊→设置 标签页表单化配置（即改即生效），或对话说「研读设置」弹交互表单；config.json 手改仍支持。也可直接用 `workshop_config` 工具读写。
+配置文件位于 `~/.dsh/paper-workshop/config.json`（首次启动自动生成）。优先在 设置→插件→插件配置 的「论文研读工坊」折叠卡片里表单化配置（即改即生效），或对话说「研读设置」弹交互表单；config.json 手改仍支持。也可直接用 `workshop_config` 工具读写。
 
 > **研读库** = 存放你全部研读资料（论文档案/笔记/周报/术语/原文 PDF）的主文件夹。默认在 `~/.dsh/paper-workshop/`，也可以指到任何位置——包括你的 Obsidian vault。
 
@@ -110,6 +110,7 @@ node scripts/verify.mjs        # 仓库内；tgz 安装的用户：
 | 「继续」（或「上课」） | 跨会话从断点续讲 |
 | 「研读设置」 | 弹出交互表单（面板设置页同款逻辑） |
 | 「跑一下周报」 | 立即执行一次每周 arXiv 周报 |
+| 「环境好了 / 代码跑通了 / 结果对上了」 | 复现阶段口头打勾：更新该论文的复现清单（主界面详情列实时可见） |
 | 「我今天读什么」/「工坊状态」 | 工作台总览（workshop_overview） |
 
 ## 卸载说明
@@ -126,7 +127,7 @@ node scripts/verify.mjs        # 仓库内；tgz 安装的用户：
 ```powershell
 pnpm install
 pnpm typecheck      # 类型检查，应 exit 0
-pnpm test           # 7 套单测，应对 24 项全过
+pnpm test           # 7 套单测，应对 28 项全过
 pnpm build          # 编译 lib/index.js + lib/client.js + lib/types/
 node scripts/smoke.mjs   # 构建产物 + ModuleLoader 装载契约冒烟，应输出 smoke ok
 ```
@@ -135,9 +136,9 @@ node scripts/smoke.mjs   # 构建产物 + ModuleLoader 装载契约冒烟，应�
 
 > 注意：`tsconfig.json` 的 `paths` 指向本机 DSH 安装内的 `@deepseek-ai/*` 类型包（与 dsh-polling 同款机器级做法）。克隆本仓库后如 `pnpm typecheck` 报模块找不到，把 `paths` 里的绝对路径替换为你机器上的 DSH 安装路径即可（`pnpm build` 不受影响，tsdown 已外部化这些包）。
 
-## 已知限制（v0.1）
+## 已知限制
 
-- **旧式 arXiv 编号**（2007 年前的 `cs/0112017`、`math.GT/0309136` 等格式）暂不能建档/建术语——档案只认 `YYMM.NNNNN[vN]` 现代格式，计划 v0.2 放宽。
+- **旧式 arXiv 编号**（2007 年前的 `cs/0112017`、`math.GT/0309136` 等格式）暂不能建档/建术语——档案只认 `YYMM.NNNNN[vN]` 现代格式，后续版本视需要放宽。
 - Windows 下 `pnpm test` 依赖 node --test 的 glob 行为，个别 shell 可能需逐文件运行（`node --experimental-transform-types tests/<x>.spec.ts`）。
 
 ## License
