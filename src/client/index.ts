@@ -30,8 +30,10 @@ export function apply(ctx: ClientContext): void {
     inject: (): WorkshopPanelInjected => ({
       // rpc.call returns the RpcResult envelope {ok,value|error} (same as dsh-polling);
       // unwrap it so the panel receives raw values. ok:false -> throw (caught by the panel).
+      // payload 归一为 null：JSON.stringify 会丢弃 undefined 键，导致服务器端
+      // clientRequestSchema 校验失败（"invalid client-request message"）——payload 键必须存在。
       call: async (endpoint, payload) => {
-        const result = await rpc.call('/workshop', endpoint, payload)
+        const result = await rpc.call('/workshop', endpoint, payload ?? null)
         if (!result.ok) {
           throw new Error(result.error?.message ?? `workshop "${endpoint}" failed`)
         }
