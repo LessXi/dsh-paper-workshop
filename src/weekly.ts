@@ -115,39 +115,45 @@ export class WeeklyScheduler {
 
   /** 立即触发（cron 到点或 weekly_report 工具）。 */
   async triggerNow(): Promise<'ok' | 'failed'> {
-    try {
-      await this.fire()
-      return 'ok'
-    } catch (error: unknown) {
-      this.ctx.logger.warn(`paper-workshop: weekly fire failed: ${String(error)}`)
-      return 'failed'
-    }
+    return (await this.fire()) ? 'ok' : 'failed'
   }
 
-  private async fire(): Promise<void> {
-    const cfg = await loadConfig(this.homeDir)
-    const week = isoWeekOf(new Date(), cfg.weekly.timeZone)
-    const prompt = renderWeeklyPrompt(cfg, week)
-    const agents = this.ctx.get('agents')
-    if (agents === undefined) throw new Error('agents service 不可用')
-    // 复用或新建任务会话
-    let agent = this.state.sessionId === null ? undefined : agents.get(this.state.sessionId as SessionId)
-    if (agent === undefined) {
-      const sessionId = randomUUID() as SessionId
-      const presets = this.ctx.get('agentPresets')
-      let agentPreset: string | undefined
-      if (presets !== undefined) agentPreset = (await presets.resolve(undefined)).id
-      const handle = await agents.create({
-        sessionId,
-        meta: { cwd: resolveDataRoot(cfg), ...agentPreset === undefined ? {} : { agentPreset } },
-        ...(presets === undefined ? {} : { setup: async (agentCtx: import('@deepseek-ai/cordis').Context) => { await presets.mount(agentCtx, agentPreset!) } }),
-      })
-      this.state.sessionId = sessionId
-      agent = handle.agent
+  private async fire(): Promise<boolean> {
+    try {
+      const cfg = await loadConfig(this.homeDir)
+      const week = isoWeekOf(new Date(), cfg.weekly.timeZone)
+      const prompt = renderWeeklyPrompt(cfg, week)
+      const agents = this.ctx.get('agents')
+      if (agents === undefined) throw new Error('agents service 不可用')
+      // 复用或新建任务会话
+      let agent = this.state.sessionId === null ? undefined : agents.get(this.state.sessionId as SessionId)
+      if (agent === undefined) {
+        const sessionId = randomUUID() as SessionId
+        const presets = this.ctx.get('agentPresets')
+        let agentPreset: string | undefined
+        if (presets !== undefined) agentPreset = (await presets.resolve(undefined)).id
+        const handle = await agents.create({
+          sessionId,
+          meta: { cwd: resolveDataRoot(cfg), ...agentPreset === undefined ? {} : { agentPreset } },
+          ...(presets === undefined ? {} : { setup: async (agentCtx: import('@deepseek-ai/cordis').Context) => { await presets.mount(agentCtx, agentPreset!) } }),
+        })
+        this.state.sessionId = sessionId
+        agent = handle.agent
+      }
+      agent.followup(createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'plugin', plugin: 'paper-workshop' } }))
+      this.state.lastRunAt = new Date().toISOString()
+      this.state.lastOutcome = 'ok'
+      return true
+    } catch (error: unknown) {
+      this.ctx.logger.warn(`paper-workshop: weekly fire failed: ${String(error)}`)
+      this.state.lastOutcome = 'failed'
+      return false
+    } finally {
+      try {
+        await this.arm() // 排下一次；成功与失败路径都重排，周报循环持续
+      } catch (error: unknown) {
+        this.ctx.logger.warn(`paper-workshop: weekly re-arm failed: ${String(error)}`)
+      }
     }
-    agent.followup(createUserMessage({ content: [{ type: 'text', text: prompt }], source: { kind: 'plugin', plugin: 'paper-workshop' } }))
-    this.state.lastRunAt = new Date().toISOString()
-    this.state.lastOutcome = 'ok'
-    await this.arm() // 排下一次
   }
 }
