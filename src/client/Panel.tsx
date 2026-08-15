@@ -1,11 +1,11 @@
 /**
- * 论文研读工坊面板：Settings → Plugins →「插件配置」tab 下的只读卡片。
- * 4 个视图：论文队列 / 论文详情 / 周报 / 术语表。所有数据经注入的 `call`
- * 桥（host `/workshop` RPC 通道）读取，无写操作。
+ * 论文研读工坊面板：Settings → Plugins →「插件配置」tab 下的卡片。
+ * 论文队列/论文详情/周报/术语表 4 视图只读 + 设置视图（配置读写）。只读数据经注入的 `call`
+ * 桥（host `/workshop` RPC 通道）读取，配置读写走 config/get · config/set，改动即时生效。
  * @module dsh-paper-workshop/client/Panel
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 
 /** Props 注入给面板：指向 `/workshop` 通道的只读调用桥（已解包 RpcResult 信封）。 */
 export interface WorkshopPanelInjected {
@@ -22,7 +22,17 @@ interface Overview {
 }
 interface TermRow { slug: string; zh: string; en: string; plain: string; first_seen: string }
 
-const TABS = ['论文队列', '论文详情', '周报', '术语表'] as const
+/** workshop_config（config/get 返回值）形状。 */
+interface ConfigState {
+  storage: { mode: 'self' | 'obsidian'; selfPath: string; obsidianPath: string }
+  weekly: {
+    enabled: boolean; cron: string; timeZone: string
+    categories: string[]; maxPerCategory: number; cardThreshold: number
+  }
+  pythonCmd: string
+}
+
+const TABS = ['论文队列', '论文详情', '周报', '术语表', '设置'] as const
 
 /** 档案状态英文值 → 面板中文显示。 */
 const STATUS_ZH: Record<string, string> = { later: '待读', reading: '在读', done: '已读', skipped: '跳过' }
@@ -36,6 +46,10 @@ export function WorkshopPanel({ call }: WorkshopPanelInjected) {
   const [selected, setSelected] = useState<string | null>(null)
   const [detail, setDetail] = useState<{ card: CardRow & Record<string, unknown>; checkpoint?: { at?: string; pending?: string; review?: string } } | null>(null)
   const [error, setError] = useState('')
+  // 设置页表单
+  const [config, setConfig] = useState<ConfigState | null>(null)
+  const [cfgSaving, setCfgSaving] = useState(false)
+  const [cfgMsg, setCfgMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   useEffect(() => {
     call('overview').then(r => setOv(r as Overview)).catch(e => setError(String(e)))
@@ -46,10 +60,44 @@ export function WorkshopPanel({ call }: WorkshopPanelInjected) {
     if (tab === '论文详情' && selected !== null && detail === null) {
       call('cards/get', { arxiv: selected }).then(r => setDetail(r as never)).catch(e => setError(String(e)))
     }
-  }, [tab, selected, detail, call])
+    if (tab === '设置' && config === null) {
+      call('config/get').then(r => { setConfig((r as { config: ConfigState }).config); setCfgMsg(null) }).catch(e => setCfgMsg({ ok: false, text: String(e) }))
+    }
+  }, [tab, selected, detail, config, call])
 
   if (error !== '') return <div>加载失败：{error}</div>
   if (ov === null) return <div>加载中…</div>
+
+  /** 设置页保存：本地轻校验通过后调 config/set，成功刷新本地 state。 */
+  const saveConfig = async (cfg: ConfigState) => {
+    const validation: string[] = []
+    if (cfg.storage.mode === 'obsidian' && cfg.storage.obsidianPath.trim() === '') validation.push('Obsidian 模式需要配置 vault 根目录（obsidianPath）')
+    if (cfg.weekly.cron.trim().split(/\s+/).length !== 5) validation.push('cron 需为 5 段：分 时 日 月 周')
+    if (!Number.isFinite(cfg.weekly.maxPerCategory) || cfg.weekly.maxPerCategory < 1) validation.push('每类条数需 ≥ 1')
+    if (!Number.isFinite(cfg.weekly.cardThreshold) || cfg.weekly.cardThreshold < 1) validation.push('建档分数线需 ≥ 1')
+    if (validation.length > 0) { setCfgMsg({ ok: false, text: validation.join('；') }); return }
+    setCfgSaving(true)
+    setCfgMsg(null)
+    try {
+      const res = await call('config/set', {
+        patch: {
+          storage: { mode: cfg.storage.mode, selfPath: cfg.storage.selfPath, obsidianPath: cfg.storage.obsidianPath },
+          weekly: {
+            enabled: cfg.weekly.enabled, cron: cfg.weekly.cron, timeZone: cfg.weekly.timeZone,
+            categories: cfg.weekly.categories.join(',').split(/[,，]/).map(s => s.trim()).filter(Boolean),
+            maxPerCategory: Number(cfg.weekly.maxPerCategory), cardThreshold: Number(cfg.weekly.cardThreshold),
+          },
+          pythonCmd: cfg.pythonCmd,
+        },
+      })
+      setConfig((res as { config: ConfigState }).config)
+      setCfgMsg({ ok: true, text: '✓ 已保存并即时生效' })
+    } catch (e) {
+      setCfgMsg({ ok: false, text: String(e) })
+    } finally {
+      setCfgSaving(false)
+    }
+  }
 
   return (
     <div>
@@ -107,6 +155,67 @@ export function WorkshopPanel({ call }: WorkshopPanelInjected) {
           </tbody>
         </table>
       )}
+      {tab === '设置' && (config === null
+        ? <div>加载中…</div>
+        : (<SettingsForm cfg={config} saving={cfgSaving} msg={cfgMsg} onSave={saveConfig} onPatch={setConfig} />)
+      )}
+    </div>
+  )
+}
+
+function SettingsForm({ cfg, saving, msg, onSave, onPatch }: {
+  cfg: ConfigState
+  saving: boolean
+  msg: { ok: boolean; text: string } | null
+  onSave: (cfg: ConfigState) => void
+  onPatch: (cfg: ConfigState) => void
+}) {
+  const set = (patch: Partial<ConfigState>) => onPatch({ ...cfg, ...patch })
+  const setStorage = (patch: Partial<ConfigState['storage']>) => set({ storage: { ...cfg.storage, ...patch } })
+  const setWeekly = (patch: Partial<ConfigState['weekly']>) => set({ weekly: { ...cfg.weekly, ...patch } })
+  const isObsidian = cfg.storage.mode === 'obsidian'
+  const field: CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '3px 6px', fontSize: 13, background: 'var(--input-bg, #1e2227)', color: 'inherit', border: '1px solid var(--border, #444)', borderRadius: 4 }
+  const label: CSSProperties = { display: 'block', margin: '8px 0 2px', fontSize: 13, opacity: 0.85 }
+  return (
+    <div style={{ fontSize: 13, lineHeight: 1.7 }}>
+      <label style={label}>存储位置</label>
+      <select value={cfg.storage.mode} onChange={e => setStorage({ mode: e.target.value as ConfigState['storage']['mode'] })} style={field}>
+        <option value="self">self（内置位置）</option>
+        <option value="obsidian">obsidian（Obsidian vault）</option>
+      </select>
+      {!isObsidian && (
+        <>
+          <label style={label}>内置研读库位置</label>
+          <input value={cfg.storage.selfPath} onChange={e => setStorage({ selfPath: e.target.value })} style={field} />
+        </>
+      )}
+      {isObsidian && (
+        <>
+          <label style={label}>Obsidian vault 根目录</label>
+          <input value={cfg.storage.obsidianPath} onChange={e => setStorage({ obsidianPath: e.target.value })} placeholder="E:\论文研读库" style={field} />
+        </>
+      )}
+      <label style={label}>
+        <input type="checkbox" checked={cfg.weekly.enabled} onChange={e => setWeekly({ enabled: e.target.checked })} style={{ marginRight: 6 }} />
+        每周自动周报
+      </label>
+      <label style={label}>触发时间 cron</label>
+      <input value={cfg.weekly.cron} onChange={e => setWeekly({ cron: e.target.value })} style={field} />
+      <div style={{ opacity: 0.6, marginTop: 2 }}>5 段：分 时 日 月 周，默认 0 9 * * 1 = 每周一 9 点</div>
+      <label style={label}>时区</label>
+      <input value={cfg.weekly.timeZone} onChange={e => setWeekly({ timeZone: e.target.value })} placeholder="Asia/Shanghai" style={field} />
+      <label style={label}>检索分类（逗号分隔）</label>
+      <input value={cfg.weekly.categories.join(',')} onChange={e => setWeekly({ categories: e.target.value.split(/[,，]/).map(s => s.trim()).filter(Boolean) })} placeholder="cs.LG,cs.CL,cs.CV" style={field} />
+      <label style={label}>每类条数</label>
+      <input type="number" value={cfg.weekly.maxPerCategory} min={1} onChange={e => setWeekly({ maxPerCategory: Number(e.target.value) })} style={field} />
+      <label style={label}>建档分数线</label>
+      <input type="number" value={cfg.weekly.cardThreshold} min={1} onChange={e => setWeekly({ cardThreshold: Number(e.target.value) })} style={field} />
+      <label style={label}>复现用 Python 命令</label>
+      <input value={cfg.pythonCmd} onChange={e => set({ pythonCmd: e.target.value })} style={field} />
+      <div style={{ marginTop: 12 }}>
+        <button disabled={saving} onClick={() => onSave(cfg)} style={{ padding: '4px 16px', cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1 }}>保存</button>
+        {msg && <span style={{ color: msg.ok ? '#4caf50' : '#e57373', marginLeft: 10 }}>{msg.text}</span>}
+      </div>
     </div>
   )
 }

@@ -1,10 +1,10 @@
-/** /workshop RPC 通道：面板只读数据出口。模式参照 dsh-polling/src/routes.ts。 */
+/** /workshop RPC 通道：面板只读数据出口 + 配置读写。模式参照 dsh-polling/src/routes.ts。 */
 import type { Context } from '@deepseek-ai/cordis'
 import type { RpcResult } from '@deepseek-ai/dsh-host-apiproxy/api'
-import { loadConfig, resolveDataRoot } from './config.ts'
+import { loadConfig, mergePatch, resolveDataRoot, saveConfig } from './config.ts'
 import { getCard, listCards, listGlossary, listReports, readCheckpoint } from './store.ts'
 
-export interface RpcDeps { homeDir: string; dataRootOverride?: string }
+export interface RpcDeps { homeDir: string; dataRootOverride?: string; onConfigChange?: () => void }
 
 type Handler = (payload: unknown, signal: AbortSignal) => Promise<unknown>
 
@@ -47,6 +47,19 @@ export function buildHandlers(deps: RpcDeps): Record<string, Handler> {
     'reports/list': async (_p, signal) => {
       signal.throwIfAborted()
       return { reports: await listReports(await rootOf(deps)) }
+    },
+    'config/get': async (_p, signal) => {
+      signal.throwIfAborted()
+      return { config: await loadConfig(deps.homeDir) }
+    },
+    'config/set': async (p, signal) => {
+      signal.throwIfAborted()
+      const { patch } = need<{ patch: Record<string, unknown> }>(p)
+      if (patch === null || typeof patch !== 'object' || Array.isArray(patch)) throw new Error('patch 必须是对象')
+      const merged = mergePatch(await loadConfig(deps.homeDir), patch)
+      await saveConfig(deps.homeDir, merged)
+      deps.onConfigChange?.() // 改动即时生效，不阻塞返回
+      return { config: merged }
     },
   }
 }

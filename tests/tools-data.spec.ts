@@ -38,3 +38,12 @@ test('glossary 与 overview', async () => {
   assert.equal(ov.cards.length, 1)
   assert.equal(ov.glossary.length, 1)
 })
+
+test('workshop_config set 触发 onConfigChange 一次', async () => {
+  let calls = 0
+  await runDataTool('workshop_config', { action: 'set', patch: { pythonCmd: 'python' } }, { homeDir: home, dataRootOverride: root, onConfigChange: () => { calls++ } })
+  assert.equal(calls, 1)
+  // get 路径不应触发
+  await runDataTool('workshop_config', { action: 'get' }, { homeDir: home, dataRootOverride: root })
+  assert.equal(calls, 1)
+})

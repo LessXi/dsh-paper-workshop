@@ -1,10 +1,10 @@
 /** 数据工具：skill 通过它们读写档案/术语/配置/概览（路径解析内聚，AI 不碰文件路径）。 */
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import { loadConfig, resolveDataRoot, saveConfig, type WorkshopConfig } from './config.ts'
+import { loadConfig, mergePatch, resolveDataRoot, saveConfig, type WorkshopConfig } from './config.ts'
 import { getCard, listCards, listGlossary, listReports, readCheckpoint, upsertCard, upsertGlossary, writeCheckpoint, type Checkpoint, type GlossaryTerm, type PaperCard } from './store.ts'
 
-export interface DataToolDeps { homeDir: string; dataRootOverride?: string }
+export interface DataToolDeps { homeDir: string; dataRootOverride?: string; onConfigChange?: () => void }
 
 async function dataRootOf(deps: DataToolDeps): Promise<string> {
   if (deps.dataRootOverride !== undefined) return deps.dataRootOverride
@@ -50,19 +50,12 @@ async function glossaryExecute(args: { action: 'upsert' | 'list'; term?: Glossar
 async function configExecute(args: { action: 'get' | 'set'; patch?: Record<string, unknown> }, deps: DataToolDeps): Promise<unknown> {
   if (args.action === 'set') {
     const current = await loadConfig(deps.homeDir)
-    const merged = deepPatch(current, args.patch ?? {})
+    const merged = mergePatch(current, args.patch ?? {})
     await saveConfig(deps.homeDir, merged)
-    return { config: merged, note: '配置已更新；周报调度将按新配置重载（下次触发生效）' }
+    deps.onConfigChange?.() // 改动即时生效，不阻塞返回
+    return { config: merged, note: '配置已更新并即时生效（周报调度已按新配置重排）' }
   }
   return { config: await loadConfig(deps.homeDir) }
-}
-
-function deepPatch<T>(base: T, patch: Record<string, unknown>): T {
-  const out: Record<string, unknown> = { ...(base as Record<string, unknown>) }
-  for (const [k, v] of Object.entries(patch)) {
-    out[k] = v !== null && typeof v === 'object' && !Array.isArray(v) ? deepPatch(out[k], v as Record<string, unknown>) : v
-  }
-  return out as T
 }
 
 async function overviewExecute(_args: Record<string, never>, deps: DataToolDeps): Promise<unknown> {

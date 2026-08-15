@@ -20,8 +20,8 @@
 │     ~/.dsh/paper-workshop/{cards,notes,       │  可一键切 Obsidian vault（storage.mode）
 │       reports,glossary,pdfs}                  │
 ├─────────────────────────────────────────────┤
-│  ④ UI layer · 网页面板（4 视图）             │  设置 → 插件 →「插件配置」只读卡片：
-│     卡片队列 / 论文详情 / 周报 / 术语表          │  数据经 /workshop RPC 通道读取
+│  ④ UI layer · 网页面板（4 视图只读 + 设置）   │  设置 → 插件 →「插件配置」只读卡片：
+│     卡片队列 / 论文详情 / 周报 / 术语表          │  数据经 /workshop RPC 通道读取，设置页交互式改配置
 └─────────────────────────────────────────────┘
 ```
 
@@ -81,7 +81,7 @@ node scripts/verify.mjs        # 仓库内；tgz 安装的用户：
 
 ## 配置说明
 
-配置文件位于 `~/.dsh/paper-workshop/config.json`（首次启动自动生成）。可在对话里说「研读设置」，或直接用 `workshop_config` 工具读写。
+配置文件位于 `~/.dsh/paper-workshop/config.json`（首次启动自动生成）。优先在 设置→插件→论文研读工坊→设置 标签页表单化配置（即改即生效），或对话说「研读设置」弹交互表单；config.json 手改仍支持。也可直接用 `workshop_config` 工具读写。
 
 > **研读库** = 存放你全部研读资料（论文档案/笔记/周报/术语/原文 PDF）的主文件夹。默认在 `~/.dsh/paper-workshop/`，也可以指到任何位置——包括你的 Obsidian vault。
 
@@ -106,7 +106,7 @@ node scripts/verify.mjs        # 仓库内；tgz 安装的用户：
 |---|---|
 | 「研读这篇 <链接/编号>」 | 进入阶段 0–1 研读流程 |
 | 「继续」（或「上课」） | 跨会话从断点续讲 |
-| 「研读设置」 | 读写配置（workshop_config） |
+| 「研读设置」 | 弹出交互表单（面板设置页同款逻辑） |
 | 「跑一下周报」 | 立即执行一次每周 arXiv 周报 |
 | 「我今天读什么」/「工坊状态」 | 工作台总览（workshop_overview） |
 

@@ -99,3 +99,11 @@ description: 论文研读工坊统一研读流程：7 阶段（筛选→鸟瞰�
 ## 验收卷子规格（GenUI）
 
 每题一个 radio（group 唯一 + answer 正确下标 + explanation），最后一个 submit（groups 列全部题号）。本地判分零往返。出题角度：核心矛盾（Q1）/ 方法部件（Q2）/ 名数字（Q3）/ 算法机制（Q4）。答错按题引导回炉：Q1→摘要、Q2→方法节、Q3→实验图表、Q4→Algorithm。
+
+## 研读设置（交互表单）
+
+用户说「研读设置」时：
+1. 先 `workshop_config` get 读当前配置。
+2. 发一张 dsh-ui 交互表单（genui 技能的围栏语法）：每个配置项一个 input/select/switch（带 id：mode/selfPath/obsidianPath/enabled/cron/timeZone/categories/maxPerCategory/cardThreshold/pythonCmd），value 预填当前值；obsidian 相关项在 mode=obsidian 时才有意义，label 里注明；最后一个 submit 按钮（action: save_workshop_config）收集全部 fields。
+3. 收到 [genui-action] save_workshop_config 的 fields 后：数字字段转 Number、categories 按逗号切分成数组，`workshop_config` set（patch 只传表单覆盖的字段），然后一句话确认「已保存并即时生效（周报调度已按新配置重排）」。
+4. 用户只想改某一项时，表单可以只出该项 + submit，不必每次全量。

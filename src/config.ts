@@ -33,6 +33,15 @@ function deepMerge<T>(base: T, patch: unknown): T {
   return (patch === undefined ? base : patch) as T
 }
 
+/** 浅对象递归合并 patch：对象递归，数组/标量整体替换（同 deepMerge 语义，patch 逐字段覆盖）。 */
+export function mergePatch<T>(base: T, patch: Record<string, unknown>): T {
+  const out: Record<string, unknown> = { ...(base as Record<string, unknown>) }
+  for (const [k, v] of Object.entries(patch)) {
+    out[k] = v !== null && typeof v === 'object' && !Array.isArray(v) ? mergePatch(out[k], v as Record<string, unknown>) : v
+  }
+  return out as T
+}
+
 /** 读插件主目录下的 config.json；不存在或字段缺失时合并默认并写回。 */
 export async function loadConfig(homeDir: string): Promise<WorkshopConfig> {
   await mkdir(homeDir, { recursive: true })

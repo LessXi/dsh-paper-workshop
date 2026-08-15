@@ -28,9 +28,10 @@ export async function apply(ctx: Context): Promise<void> {
   ctx.effect(() => {
     // 2) 检索工具 + 数据工具
     const disposeSearch = registerSearchTools(ctx)
-    const disposeData = registerDataTools(ctx, { homeDir: HOME_DIR })
-    // 3) /workshop RPC 通道（同步注册，返回 async disposer）——供 web 面板只读查询
-    const disposeRpc = registerWorkshopRpc(ctx, { homeDir: HOME_DIR })
+    const onConfigChange = () => { void weekly.reload() } // 配置改动即时生效：周报调度按新配置重排
+    const disposeData = registerDataTools(ctx, { homeDir: HOME_DIR, onConfigChange })
+    // 3) /workshop RPC 通道（同步注册，返回 async disposer）——供 web 面板只读查询 + 配置读写
+    const disposeRpc = registerWorkshopRpc(ctx, { homeDir: HOME_DIR, onConfigChange })
     // 4) weekly_report：立即手动跑本周周报
     const disposeWeeklyTool = ctx.tools.register(defineTool({
       name: 'weekly_report',
