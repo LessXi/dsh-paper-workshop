@@ -38,7 +38,7 @@ export function buildHandlers(deps: RpcDeps): Record<string, Handler> {
       const card = await getCard(await rootOf(deps), arxiv)
       if (card === undefined) throw new Error(`档案不存在：${arxiv}`)
       const { body, ...rest } = card
-      return { card: rest, checkpoint: readCheckpoint(card), notesHint: `<数据根>/notes/${arxiv}/` }
+      return { card: rest, checkpoint: readCheckpoint(card), notesHint: `研读库 notes/${arxiv}/` }
     },
     'glossary/list': async (_p, signal) => {
       signal.throwIfAborted()

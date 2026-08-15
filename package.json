@@ -1,6 +1,6 @@
 {
   "name": "dsh-paper-workshop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "论文研读工坊：5 个免 key 检索工具 + 7 阶段×教学循环统一 skill + 自管研读库（可切 Obsidian）+ 每周 arXiv 周报 + 网页面板。研读这篇→筛选→鸟瞰→精读(老师模式)→深挖→溯源→复现→内化。",
   "license": "MIT",
   "type": "module",
@@ -23,7 +23,7 @@
       "platform": "web"
     }
   },
-  "files": ["lib/index.js", "lib/client.js", "lib/types/**/*.d.ts", "SKILL.md", "cordis.patch.yml", "README.md", "LICENSE"],
+  "files": ["lib/index.js", "lib/client.js", "lib/types/**/*.d.ts", "SKILL.md", "cordis.patch.yml", "scripts/verify.mjs", "README.md", "LICENSE"],
   "scripts": {
     "build": "tsdown && npm run build:types",
     "build:types": "tsc -p tsconfig.json --emitDeclarationOnly --outDir lib/types",

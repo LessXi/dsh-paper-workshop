@@ -32,7 +32,7 @@
 ### 方式一：GitHub Release 包（推荐给最终用户，预构建零依赖）
 
 ```powershell
-dsh plugin --profile web add https://github.com/LessXi/dsh-paper-workshop/releases/download/v0.1.0/dsh-paper-workshop-0.1.0.tgz
+dsh plugin --profile web add https://github.com/LessXi/dsh-paper-workshop/releases/download/v0.1.1/dsh-paper-workshop-0.1.1.tgz
 ```
 
 ### 方式二：源码 tar.gz（追最新 main，安装时自动构建）
@@ -61,37 +61,44 @@ dev_install_package  dir = <dsh-paper-workshop 项目根>
 2. 把 skill 自安装到 `~/.dsh/skills/paper-workshop/SKILL.md`（升级覆盖写）；
 3. 按默认配置启动每周 arXiv 周报调度。
 
-## 验收自检清单
+## 安装自检
 
-安装后可逐条自检（对照设计 §12）：
+装好重启后，跑一条命令完成大部分验收（零依赖，Node ≥ 22）：
 
-| # | 验收项 | 自检方法 |
+```powershell
+node scripts/verify.mjs        # 仓库内；tgz 安装的用户：
+                               # node <profile>/node_modules/dsh-paper-workshop/scripts/verify.mjs
+```
+
+脚本自动检查 6 项：配置文件合法 / 研读库五个子目录 / 研读技能已安装 / 论文档案可读 / arXiv 检索通道连通 / 引文检索通道连通，输出 ✅/❌ 清单。
+
+剩两项动嘴即可（脚本测不了）：
+
+| # | 手动项 | 怎么验 |
 |---|---|---|
-| 1 | 工具可调用 | 新会话确认 `arxiv_search` 等 **5 检索 + 4 数据 + 1 手动周报**共 10 个工具可用；`~/.dsh/paper-workshop/` 与五子目录已自动创建；设置→插件→面板 **4 视图**可见 |
-| 2 | 研读走通阶段 0–1 | 丢 arXiv 链接说「研读这篇 <链接/编号>」，阶段 0–1 走完出 GenUI 卷子；档案三行（title/one_line/status 等）落盘 |
-| 3 | 「继续」跨会话续讲 | 阶段 2 结束后说「继续」，能跨会话从断点小节续讲（断点正确读写） |
-| 4 | 周报触发落盘 + 建卡 | 说「跑一下周报」→ `weekly_report` 派发任务会话 → `reports/<YYYY-WW>-arxiv.md` 落盘 + 高分论文自动建卡 |
-| 5 | obsidian 切换 | `workshop_config` set 切 obsidian 模式（指向临时 vault 目录）→ `workshop_overview` 的 `dataRoot` 随之变化 |
-| 6 | 术语表可见 | 精读攒新词 → `glossary/` 落卡 → 面板「术语表」可见 |
+| 1 | 研读流程 + 断点续讲 | 新会话说「研读这篇 <任一 arXiv 链接>」→ 应走筛选+鸟瞰并出验收卷子；中断后说「继续」应从断点续讲 |
+| 2 | 周报 + 面板 | 说「跑一下周报」→ 研读库 `reports/` 应落一份周报；网页 设置→插件→论文研读工坊 可见 4 视图 |
 
 ## 配置说明
 
 配置文件位于 `~/.dsh/paper-workshop/config.json`（首次启动自动生成）。可在对话里说「研读设置」，或直接用 `workshop_config` 工具读写。
 
+> **研读库** = 存放你全部研读资料（论文档案/笔记/周报/术语/原文 PDF）的主文件夹。默认在 `~/.dsh/paper-workshop/`，也可以指到任何位置——包括你的 Obsidian vault。
+
 | 段 | 键 | 默认值 | 说明 |
 |---|---|---|---|
-| `storage` | `mode` | `self` | 数据根模式：`self`（自管）/ `obsidian`（切 Obsidian vault） |
-| `storage` | `selfPath` | `~/.dsh/paper-workshop` | self 模式的数据根（`~` 展开为家目录） |
-| `storage` | `obsidianPath` | `''`（空） | obsidian 模式的 vault 根目录；切 obsidian 前必须配置 |
+| `storage` | `mode` | `self` | 研读库放在哪：`self`（内置位置）/ `obsidian`（放进你的 Obsidian vault） |
+| `storage` | `selfPath` | `~/.dsh/paper-workshop` | 内置模式下研读库的位置（`~` 展开为家目录） |
+| `storage` | `obsidianPath` | `''`（空） | Obsidian 模式下你的 vault 根目录；切 `obsidian` 前必须配置 |
 | `weekly` | `enabled` | `true` | 是否启用每周自动周报调度 |
 | `weekly` | `cron` | `0 9 * * 1` | 触发表达式（分 时 日 月 周） |
 | `weekly` | `timeZone` | `Asia/Shanghai` | 调度所依据的时区 |
 | `weekly` | `categories` | `['cs.LG','cs.CL','cs.CV']` | 每周检索的 arXiv 分类 |
 | `weekly` | `maxPerCategory` | `10` | 每类检索返回条数 |
-| `weekly` | `cardThreshold` | `7` | 价值分达此阈值且判 later 的论文自动建卡 |
+| `weekly` | `cardThreshold` | `7` | 价值分达此阈值且判 later 的论文自动建档 |
 | `pythonCmd` | — | `py -3.13` | 阶段 3 深挖调用的本机 Python 命令 |
 
-周报正文写入 `<数据根>/reports/<YYYY-WW>-arxiv.md`（如 `2026-W31-arxiv.md`）。
+周报正文写入研读库的 `reports/<YYYY-WW>-arxiv.md`（如 `2026-W31-arxiv.md`）。
 
 ## 使用短语速查
 
@@ -128,7 +135,7 @@ node scripts/smoke.mjs   # 构建产物 + ModuleLoader 装载契约冒烟，应�
 
 ## 已知限制（v0.1）
 
-- **旧式 arXiv 编号**（2007 年前的 `cs/0112017`、`math.GT/0309136` 等格式）暂不能建档/建术语——档案路径守卫只认 `YYMM.NNNNN[vN]` 现代格式，计划 v0.2 放宽。
+- **旧式 arXiv 编号**（2007 年前的 `cs/0112017`、`math.GT/0309136` 等格式）暂不能建档/建术语——档案只认 `YYMM.NNNNN[vN]` 现代格式，计划 v0.2 放宽。
 - Windows 下 `pnpm test` 依赖 node --test 的 glob 行为，个别 shell 可能需逐文件运行（`node --experimental-transform-types tests/<x>.spec.ts`）。
 
 ## License

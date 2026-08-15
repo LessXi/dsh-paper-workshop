@@ -139,7 +139,7 @@ export function registerDataTools(ctx: Context, deps: DataToolDeps): () => void 
   })))
   disposers.push(ctx.tools.register(defineTool({
     name: 'workshop_overview',
-    description: '研读工作台总览：卡片队列（不带正文）+ 状态统计 + 术语数 + 周报列表。「我今天读什么」「工坊状态」时用。',
+    description: '研读工作台总览：论文队列（不带正文）+ 状态统计 + 术语数 + 周报列表。「我今天读什么」「工坊状态」时用。',
     parameters: {},
     output: {
       schema: { type: 'object', additionalProperties: true },

@@ -76,7 +76,7 @@ export function renderWeeklyPrompt(cfg: WorkshopConfig, week: string): string {
     `2. 对每篇做三问筛选：①类型（新方法/测量/理论/综述/工具）②与已有研究的相关性（可 workshop_overview 查档案）③可信度。打价值分 0-10（对用户研究方向的实用价值，不是论文质量）。`,
     `3. 输出 Markdown 周报：分三类表格（标题一句/类型/价值分/一句话价值/判定），判定取 later 或 跳过。`,
     `4. 判定 later 且价值分 ≥${cfg.weekly.cardThreshold} 的论文：paper_card upsert 建档（status: later、score、one_line、source_week: "${week}"）；已有档案则只更新 one_line。`,
-    `5. 周报正文保存：调 pwsh 写入 <数据根>/reports/${week}-arxiv.md（数据根用 workshop_overview 的 dataRoot 字段）。`,
+    `5. 周报正文保存：调 pwsh 写入研读库的 reports/${week}-arxiv.md（研读库路径 = workshop_overview 返回的 dataRoot 字段）。`,
     '',
     '注意：只筛选与建卡，不开启精读；token 从紧，看不准的宁可标 later 人工定夺。',
   ].join('\n')
