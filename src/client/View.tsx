@@ -1,8 +1,7 @@
 /**
  * 论文工坊主视图（conversation.view 视图环成员，与「对话/轨迹/瀑布流」并列）。
- * 单页布局（v0.4.1 起不再分二级标签）：论文库（左队列右详情）/ 周报 / 术语表
- * 三个区块纵向排布，同一容器同一宽度，一滚到底。
- * 视觉全部走 --dsw-* 设计令牌，自动跟随明暗主题。
+ * 单页三列并排：论文库 | 周报 | 术语表——三个板块同一页面同时可见，各自内容纵向流；
+ * 窄窗口（<约 900px）自动上下堆叠。视觉全部走 --dsw-* 设计令牌，明暗主题自适应。
  * @module dsh-paper-workshop/client/View
  */
 
@@ -48,8 +47,6 @@ const T = {
   faint: 'var(--dsw-alias-label-tertiary, var(--dsw-alias-label-secondary))',
   border: 'var(--dsw-alias-border-l1)',
   border2: 'var(--dsw-alias-border-l2)',
-  bg: 'var(--dsw-alias-bg-base)',
-  layer: 'var(--dsw-alias-bg-layer-1, var(--dsw-alias-bg-base))',
   brand: 'var(--dsw-alias-brand-primary)',
   ok: 'var(--dsw-alias-state-success-primary)',
   warn: 'var(--dsw-alias-state-warn-primary)',
@@ -62,12 +59,17 @@ const chip = (color: string): CSSProperties => ({
   color, background: `color-mix(in srgb, ${color} 12%, transparent)`,
 })
 
-/** 区块标题：论文库 / 周报 / 术语表。 */
-function SectionTitle({ title, extra }: { title: string; extra?: string }) {
+/** 三列中的每一列：圆角容器 + 标题条（标题 + 计数）+ 内容区。 */
+function Column({ title, extra, flex, min, children }: {
+  title: string; extra?: string; flex: string; min: number; children: React.ReactNode
+}) {
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, margin: '26px 0 10px' }}>
-      <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{title}</span>
-      {extra !== undefined && <span style={{ fontSize: 12, color: T.faint }}>{extra}</span>}
+    <div style={{ flex, minWidth: min, maxWidth: '100%', border: `1px solid ${T.border}`, borderRadius: 12, display: 'flex', flexDirection: 'column', alignSelf: 'stretch' }}>
+      <div style={{ padding: '10px 14px 8px', display: 'flex', alignItems: 'baseline', gap: 8, borderBottom: `1px solid ${T.border}` }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{title}</span>
+        {extra !== undefined && <span style={{ fontSize: 12, color: T.faint }}>{extra}</span>}
+      </div>
+      <div style={{ padding: '10px 14px 12px', minHeight: 0 }}>{children}</div>
     </div>
   )
 }
@@ -112,10 +114,10 @@ function ReproList({ repro }: { repro: ReproState }) {
   )
 }
 
-/** 论文详情右栏。 */
+/** 论文详情（论文库列内，选中后显示在队列表下方）。 */
 function DetailPane({ detail }: { detail: CardDetail | null }) {
   if (detail === null) {
-    return <div style={{ color: T.faint, fontSize: 12.5, padding: '6px 2px' }}>左侧点选一篇论文，这里显示研读进度与断点。</div>
+    return <div style={{ color: T.faint, fontSize: 12.5, padding: '4px 2px' }}>点选上方论文，这里显示研读进度与断点。</div>
   }
   const c = detail.card
   const stage = Number(c.stage ?? 0)
@@ -160,6 +162,20 @@ function DetailPane({ detail }: { detail: CardDetail | null }) {
   )
 }
 
+/** 术语条目（紧凑纵排，适配窄列）。 */
+function TermItem({ t }: { t: TermRow }) {
+  return (
+    <div style={{ padding: '8px 0', borderBottom: `1px solid ${T.border}` }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontWeight: 600, color: T.text }}>{t.zh}</span>
+        <span style={{ color: T.sub, fontSize: 12 }}>{t.en}</span>
+      </div>
+      <div style={{ color: T.text, fontSize: 12.5, marginTop: 2, lineHeight: 1.55 }}>{t.plain}</div>
+      <div style={{ color: T.faint, fontSize: 11.5, fontFamily: 'ui-monospace, Consolas, monospace', marginTop: 2 }}>首见 {t.first_seen}</div>
+    </div>
+  )
+}
+
 /** 主视图组件。 */
 export function WorkshopView({ call }: WorkshopViewInjected & Partial<WorkshopViewOwnerProps>) {
   const [ov, setOv] = useState<Overview | null>(null)
@@ -194,9 +210,9 @@ export function WorkshopView({ call }: WorkshopViewInjected & Partial<WorkshopVi
   if (ov === null) return <div style={{ padding: 24, color: T.sub, fontSize: 13 }}>加载中…</div>
 
   return (
-    <div style={{ padding: '18px 26px 40px', maxWidth: 1080, margin: '0 auto', fontSize: 13, lineHeight: 1.6, color: T.text }}>
+    <div style={{ padding: '18px 26px 40px', maxWidth: 1280, margin: '0 auto', fontSize: 13, lineHeight: 1.6, color: T.text }}>
       {/* 头部：研读库 + 统计 + 刷新 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
         <span style={{ fontSize: 12.5, color: T.sub }}>
           研读库 <span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: 12 }}>{ov.dataRoot}</span>
           <span style={{ margin: '0 8px', color: T.border }}>·</span>
@@ -209,21 +225,22 @@ export function WorkshopView({ call }: WorkshopViewInjected & Partial<WorkshopVi
         <Button variant="ghost" size="sm" icon={<IconRefreshOutline14 />} onClick={load}>刷新</Button>
       </div>
 
-      {/* 区块一：论文库 */}
-      <SectionTitle title="论文库" extra={ov.cards.length > 0 ? `${ov.cards.length} 篇` : undefined} />
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'flex-start' }}>
-        <div style={{ flex: '5 1 320px', minWidth: 280 }}>
+      {/* 三列并排：论文库 | 周报 | 术语表（窄窗口自动堆叠） */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'stretch' }}>
+
+        {/* 列一：论文库（队列 + 选中详情） */}
+        <Column title="论文库" extra={ov.cards.length > 0 ? `${ov.cards.length} 篇` : undefined} flex="5 1 340px" min={300}>
           {ov.cards.length === 0
-            ? <div style={{ padding: '16px 4px', color: T.faint, fontSize: 12.5 }}>
+            ? <div style={{ padding: '10px 2px', color: T.faint, fontSize: 12.5 }}>
               还没有论文。在对话里说「研读这篇 &lt;arXiv 编号或链接&gt;」，或等每周一自动周报推荐。
             </div>
             : (
-              <div style={{ border: `1px solid ${T.border}`, borderRadius: 10, overflow: 'hidden' }}>
+              <div>
                 {ov.cards.map((c, i) => {
                   const active = c.arxiv === selected
                   return (
                     <div key={c.arxiv} onClick={() => setSelected(c.arxiv)} style={{
-                      padding: '9px 13px', cursor: 'pointer',
+                      padding: '8px 4px', cursor: 'pointer', borderRadius: 8,
                       borderTop: i === 0 ? 'none' : `1px solid ${T.border}`,
                       background: active ? `color-mix(in srgb, ${T.brand} 8%, transparent)` : undefined,
                     }}>
@@ -244,66 +261,56 @@ export function WorkshopView({ call }: WorkshopViewInjected & Partial<WorkshopVi
                     </div>
                   )
                 })}
+                {selected !== null && (
+                  <div style={{ borderTop: `1px solid ${T.border}`, marginTop: 8, paddingTop: 10 }}>
+                    {detail === null
+                      ? <div style={{ color: T.faint, fontSize: 12.5 }}>详情加载中…</div>
+                      : <DetailPane detail={detail} />}
+                  </div>
+                )}
               </div>
             )}
-        </div>
-        <div style={{ flex: '4 1 280px', minWidth: 260, border: `1px solid ${T.border}`, borderRadius: 10, padding: '12px 14px' }}>
-          <DetailPane detail={detail} />
-        </div>
-      </div>
+        </Column>
 
-      {/* 区块二：周报 */}
-      <SectionTitle title="周报" extra={ov.reports.length > 0 ? `${ov.reports.length} 期` : undefined} />
-      {ov.reports.length === 0
-        ? <div style={{ padding: '10px 4px', color: T.faint, fontSize: 12.5 }}>
-          还没有周报。每周一自动生成，或在对话里说「跑一下周报」。
-        </div>
-        : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {ov.reports.map(r => (
-              <div key={r.week} style={{
-                display: 'flex', alignItems: 'center', gap: 12, padding: '9px 13px',
-                border: `1px solid ${T.border}`, borderRadius: 10,
-              }}>
-                <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{r.week}</span>
-                <span style={{ flex: 1, color: T.sub, fontSize: 12.5 }}>{new Date(r.mtimeMs).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric', weekday: 'short' })} 生成</span>
-                <span style={{ fontSize: 12, color: T.faint }}>对话里说「看 {r.week} 周报」我来解读</span>
+        {/* 列二：周报 */}
+        <Column title="周报" extra={ov.reports.length > 0 ? `${ov.reports.length} 期` : undefined} flex="2 1 190px" min={180}>
+          {ov.reports.length === 0
+            ? <div style={{ padding: '10px 2px', color: T.faint, fontSize: 12.5 }}>
+              还没有周报。每周一自动生成，或在对话里说「跑一下周报」。
+            </div>
+            : (
+              <div>
+                {ov.reports.map(r => (
+                  <div key={r.week} style={{ padding: '8px 0', borderBottom: `1px solid ${T.border}` }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                      <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: T.text }}>{r.week}</span>
+                      <span style={{ flex: 1 }} />
+                      <span style={{ fontSize: 12, color: T.sub }}>{new Date(r.mtimeMs).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric', weekday: 'short' })}</span>
+                    </div>
+                    <div style={{ fontSize: 11.5, color: T.faint, marginTop: 2 }}>对话里说「看 {r.week} 周报」我来解读</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            )}
+        </Column>
 
-      {/* 区块三：术语表 */}
-      <SectionTitle title="术语表" extra={terms.length > 0 ? `${terms.length} 条` : undefined} />
-      <div style={{ marginBottom: 10, maxWidth: 320 }}>
-        <Input icon={<IconSearchOutline16 />} placeholder="搜索中文 / 英文 / 解释" value={termQuery} onChange={(e: ChangeEvent<HTMLInputElement>) => setTermQuery(e.target.value)} />
+        {/* 列三：术语表 */}
+        <Column title="术语表" extra={terms.length > 0 ? `${terms.length} 条` : undefined} flex="3 1 250px" min={240}>
+          <div style={{ marginBottom: 6 }}>
+            <Input icon={<IconSearchOutline16 />} placeholder="搜索中文 / 英文 / 解释" value={termQuery} onChange={(e: ChangeEvent<HTMLInputElement>) => setTermQuery(e.target.value)} />
+          </div>
+          {filteredTerms.length === 0
+            ? <div style={{ padding: '10px 2px', color: T.faint, fontSize: 12.5 }}>
+              {terms.length === 0 ? '还没有术语。精读时攒下的新词会自动进来。' : '没有匹配的术语。'}
+            </div>
+            : (
+              <div style={{ maxHeight: 480, overflowY: 'auto' }}>
+                {filteredTerms.map(t => <TermItem key={t.slug} t={t} />)}
+              </div>
+            )}
+        </Column>
+
       </div>
-      {filteredTerms.length === 0
-        ? <div style={{ padding: '10px 4px', color: T.faint, fontSize: 12.5 }}>
-          {terms.length === 0 ? '还没有术语。精读时攒下的新词会自动进来。' : '没有匹配的术语。'}
-        </div>
-        : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr>{['中文', '英文', '人话解释', '首见'].map(h => (
-                <th key={h} style={{
-                  textAlign: 'left', padding: '7px 10px', fontSize: 12, fontWeight: 500,
-                  color: T.sub, borderBottom: `1px solid ${T.border2}`,
-                }}>{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody>
-              {filteredTerms.map(t => (
-                <tr key={t.slug}>
-                  <td style={{ padding: '8px 10px', borderBottom: `1px solid ${T.border}`, whiteSpace: 'nowrap' }}>{t.zh}</td>
-                  <td style={{ padding: '8px 10px', borderBottom: `1px solid ${T.border}`, color: T.sub, whiteSpace: 'nowrap' }}>{t.en}</td>
-                  <td style={{ padding: '8px 10px', borderBottom: `1px solid ${T.border}` }}>{t.plain}</td>
-                  <td style={{ padding: '8px 10px', borderBottom: `1px solid ${T.border}`, color: T.faint, fontFamily: 'ui-monospace, Consolas, monospace', fontSize: 12 }}>{t.first_seen}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
     </div>
   )
 }

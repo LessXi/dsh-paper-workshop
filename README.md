@@ -21,8 +21,9 @@
 │       reports,glossary,pdfs}                  │
 ├─────────────────────────────────────────────┤
 │  ④ UI layer · 主界面视图 + 设置卡片          │  会话顶部视图栏「论文工坊」整页
-│     论文库(队列+详情) / 周报 / 术语表 / 复现清单 │  （与对话/轨迹/瀑布流并列）；设置→
-│                                               │  插件→插件配置 里一张折叠卡片
+│     论文库 | 周报 | 术语表 三列并排 + 复现清单 │  （与对话/轨迹/瀑布流并列，窄窗
+│                                               │  口自动堆叠）；设置→插件→插件配
+│                                               │  置 里一张折叠卡片（原生同款）
 └─────────────────────────────────────────────┘
 ```
 
@@ -33,7 +34,7 @@
 ### 方式一：GitHub Release 包（推荐给最终用户，预构建零依赖）
 
 ```powershell
-dsh plugin --profile web add https://github.com/LessXi/dsh-paper-workshop/releases/download/v0.4.0/dsh-paper-workshop-0.4.0.tgz
+dsh plugin --profile web add https://github.com/LessXi/dsh-paper-workshop/releases/download/v0.4.1/dsh-paper-workshop-0.4.1.tgz
 ```
 
 ### 方式二：源码 tar.gz（追最新 main，安装时自动构建）
