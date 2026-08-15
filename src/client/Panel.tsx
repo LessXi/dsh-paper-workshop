@@ -58,7 +58,7 @@ export function WorkshopPanel({ call }: WorkshopPanelInjected) {
           <thead><tr>{['论文', '状态', '分', '阶段'].map(h => <th key={h} style={{ textAlign: 'left', padding: 4, borderBottom: '1px solid var(--border, #444)' }}>{h}</th>)}</tr></thead>
           <tbody>
             {ov.cards.map(c => (
-              <tr key={c.arxiv} style={{ cursor: 'pointer' }} onClick={() => { setSelected(c.arxiv); setTab('论文详情') }}>
+              <tr key={c.arxiv} style={{ cursor: 'pointer' }} onClick={() => { setSelected(c.arxiv); setTab('论文详情'); setDetail(null) }}>
                 <td style={{ padding: 4 }}>{c.title || c.arxiv}</td>
                 <td style={{ padding: 4 }}>{c.status}</td>
                 <td style={{ padding: 4 }}>{c.score}</td>

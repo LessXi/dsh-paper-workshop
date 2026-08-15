@@ -5,6 +5,14 @@ import { ensureDataRoot } from './config.ts'
 
 export { ensureDataRoot }
 
+// ---------- arXiv 编号守卫 ----------
+// 严格形态：4-5位分类号 . 4-5位序列号，可选 vN 版本后缀。全部现有测试中经 cardPath
+// 的 id（2608.00001/00002/00003）均通过，故采用更严格的防路径逃逸形态。
+const ARXIV_ID_RE = /^[\d]{4,5}\.[\d]{4,5}(v\d+)?$/
+function assertArxivId(arxiv: string): void {
+  if (!ARXIV_ID_RE.test(arxiv)) throw new Error(`非法 arXiv 编号：${arxiv}`)
+}
+
 export interface ReviewItem { concept: string; added: string; source: string }
 export interface PaperCard {
   arxiv: string; title: string; authors: string; year: string; venue: string
@@ -136,7 +144,9 @@ function toCard(data: Record<string, unknown>, body: string): PaperCard {
 
 /** 幂等建档/更新：按 arxiv 定位，传入字段覆盖 frontmatter，正文保留（checkpoint 用 writeCheckpoint 单独维护）。 */
 export async function upsertCard(root: string, patch: Partial<PaperCard> & { arxiv: string }): Promise<PaperCard> {
-  const file = cardPath(root, patch.arxiv)
+  const arxiv = patch.arxiv
+  assertArxivId(arxiv)
+  const file = cardPath(root, arxiv)
   let data: Record<string, unknown> = {}
   let body = ''
   try {
@@ -155,6 +165,7 @@ export async function upsertCard(root: string, patch: Partial<PaperCard> & { arx
 }
 
 export async function getCard(root: string, arxiv: string): Promise<PaperCard | undefined> {
+  assertArxivId(arxiv)
   try {
     const parsed = parseFrontmatter(await readFile(cardPath(root, arxiv), 'utf8'))
     return toCard(parsed.data, parsed.body)
@@ -172,6 +183,7 @@ export interface Checkpoint { at: string; pending?: string; review?: string }
 
 /** 整段替换正文中的 `## 断点` 小节（无则追加到文末）。 */
 export async function writeCheckpoint(root: string, arxiv: string, cp: Checkpoint): Promise<void> {
+  assertArxivId(arxiv)
   const file = cardPath(root, arxiv)
   let data: Record<string, unknown> = {}
   let body = ''
