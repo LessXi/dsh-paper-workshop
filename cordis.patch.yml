@@ -1,0 +1,3 @@
+- type: plugin
+  name: paper-workshop
+  source: dsh-paper-workshop
