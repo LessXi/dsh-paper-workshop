@@ -7,6 +7,7 @@ import { resolveDataRootSafe } from './data-root.ts'
 import { registerDataTools } from './tools-data.ts'
 import { registerSearchTools } from './tools-search.ts'
 import { installSkill } from './skill-install.ts'
+import { registerWorkshopRpc } from './routes.ts'
 import { WeeklyScheduler } from './weekly.ts'
 
 export const name = 'paper-workshop'
@@ -28,7 +29,9 @@ export async function apply(ctx: Context): Promise<void> {
     // 2) 检索工具 + 数据工具
     const disposeSearch = registerSearchTools(ctx)
     const disposeData = registerDataTools(ctx, { homeDir: HOME_DIR })
-    // 3) weekly_report：立即手动跑本周周报
+    // 3) /workshop RPC 通道（同步注册，返回 async disposer）——供 web 面板只读查询
+    const disposeRpc = registerWorkshopRpc(ctx, { homeDir: HOME_DIR })
+    // 4) weekly_report：立即手动跑本周周报
     const disposeWeeklyTool = ctx.tools.register(defineTool({
       name: 'weekly_report',
       description: '立即执行一次 arXiv 每周前沿追踪（不等 cron 到点）：扫分类新论文→三问筛选打分→周报落盘→高分建卡。用户说「跑一下周报」「现在出周报」时用。',
@@ -47,6 +50,7 @@ export async function apply(ctx: Context): Promise<void> {
       disposeWeeklyTool()
       disposeData()
       disposeSearch()
+      void disposeRpc()
       void weekly.dispose()
     }
   }, 'paper-workshop.lifecycle()')
