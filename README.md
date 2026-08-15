@@ -33,7 +33,7 @@
 ### 方式一：GitHub Release 包（推荐给最终用户，预构建零依赖）
 
 ```powershell
-dsh plugin --profile web add https://github.com/LessXi/dsh-paper-workshop/releases/download/v0.1.1/dsh-paper-workshop-0.1.1.tgz
+dsh plugin --profile web add https://github.com/LessXi/dsh-paper-workshop/releases/download/v0.3.0/dsh-paper-workshop-0.3.0.tgz
 ```
 
 ### 方式二：源码 tar.gz（追最新 main，安装时自动构建）
